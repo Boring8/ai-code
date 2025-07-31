@@ -62,7 +62,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         }
         return user.getId();
     }
-
+    @Override
     public String getEncryptPassword(String userPassword) {
         // 盐值，混淆密码
         final String SALT = "easen";

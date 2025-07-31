@@ -19,6 +19,13 @@ public interface UserService extends IService<User> {
     LoginUserVO getLoginUserVO(User user);
 
     /**
+     * 密码加密
+     * @param userPassword
+     * @return
+     */
+    public String getEncryptPassword(String userPassword);
+
+    /**
      * 用户注册
      *
      * @param userAccount   用户账户
@@ -50,5 +57,6 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean userLogout(HttpServletRequest request);
+
 
 }
