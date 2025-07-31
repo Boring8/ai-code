@@ -9,10 +9,7 @@ import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
-import com.easen.aicode.model.dto.UserAddRequest;
-import com.easen.aicode.model.dto.UserLoginRequest;
-import com.easen.aicode.model.dto.UserRegisterRequest;
-import com.easen.aicode.model.dto.UserUpdateRequest;
+import com.easen.aicode.model.dto.*;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.LoginUserVO;
 import com.easen.aicode.model.vo.UserVO;
@@ -140,6 +137,26 @@ public class UserController {
         boolean b = userService.removeById(deleteRequest.getId());
         return ResultUtils.success(b);
     }
-    
+
+
+    /**
+     * 分页获取用户封装列表（仅管理员）
+     *
+     * @param userQueryRequest 查询请求参数
+     */
+    @PostMapping("/list/page/vo")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Page<UserVO>> listUserVOByPage(@RequestBody UserQueryRequest userQueryRequest) {
+        ThrowUtils.throwIf(userQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        long pageNum = userQueryRequest.getPageNum();
+        long pageSize = userQueryRequest.getPageSize();
+        Page<User> userPage = userService.page(Page.of(pageNum, pageSize),
+                userService.getQueryWrapper(userQueryRequest));
+        // 数据脱敏
+        Page<UserVO> userVOPage = new Page<>(pageNum, pageSize, userPage.getTotalRow());
+        List<UserVO> userVOList = userService.getUserVOList(userPage.getRecords());
+        userVOPage.setRecords(userVOList);
+        return ResultUtils.success(userVOPage);
+    }
 
 }

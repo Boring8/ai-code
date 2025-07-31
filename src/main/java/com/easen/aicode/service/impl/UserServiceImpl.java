@@ -6,6 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.model.UserRoleEnum;
+import com.easen.aicode.model.dto.UserQueryRequest;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.mapper.UserMapper;
 import com.easen.aicode.model.vo.LoginUserVO;
@@ -154,6 +155,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
             return new ArrayList<>();
         }
         return userList.stream().map(this::getUserVO).collect(Collectors.toList());
+    }
+    @Override
+    public QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest) {
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+        }
+        Long id = userQueryRequest.getId();
+        String userAccount = userQueryRequest.getUserAccount();
+        String userName = userQueryRequest.getUserName();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+        return QueryWrapper.create()
+                .eq("id", id)
+                .eq("userRole", userRole)
+                .like("userAccount", userAccount)
+                .like("userName", userName)
+                .like("userProfile", userProfile)
+                .orderBy(sortField, "ascend".equals(sortOrder));
     }
 
 }
