@@ -3,6 +3,10 @@
 
 target
 
+### CUSTOM ###
+application-local.yml
+
+
 # Log file
 *.log
 
