@@ -2,8 +2,11 @@ package com.easen.aicode.service;
 
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.LoginUserVO;
+import com.easen.aicode.model.vo.UserVO;
 import com.mybatisflex.core.service.IService;
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
 
 /**
  * 用户 服务层。
@@ -58,5 +61,7 @@ public interface UserService extends IService<User> {
      */
     boolean userLogout(HttpServletRequest request);
 
+    public UserVO getUserVO(User user);
 
+    public List<UserVO> getUserVOList(List<User> userList);
 }

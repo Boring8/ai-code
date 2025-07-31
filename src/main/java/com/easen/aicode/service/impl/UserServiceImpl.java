@@ -1,6 +1,7 @@
 package com.easen.aicode.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
@@ -8,12 +9,17 @@ import com.easen.aicode.model.UserRoleEnum;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.mapper.UserMapper;
 import com.easen.aicode.model.vo.LoginUserVO;
+import com.easen.aicode.model.vo.UserVO;
 import com.easen.aicode.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.easen.aicode.constant.UserConstant.USER_LOGIN_STATE;
 
@@ -131,6 +137,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         // 移除登录态
         request.getSession().removeAttribute(USER_LOGIN_STATE);
         return true;
+    }
+    @Override
+    public UserVO getUserVO(User user) {
+        if (user == null) {
+            return null;
+        }
+        UserVO userVO = new UserVO();
+        BeanUtil.copyProperties(user, userVO);
+        return userVO;
+    }
+
+    @Override
+    public List<UserVO> getUserVOList(List<User> userList) {
+        if (CollUtil.isEmpty(userList)) {
+            return new ArrayList<>();
+        }
+        return userList.stream().map(this::getUserVO).collect(Collectors.toList());
     }
 
 }
