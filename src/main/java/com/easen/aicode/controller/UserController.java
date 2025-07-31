@@ -3,6 +3,7 @@ package com.easen.aicode.controller;
 import cn.hutool.core.bean.BeanUtil;
 import com.easen.aicode.annotation.AuthCheck;
 import com.easen.aicode.common.BaseResponse;
+import com.easen.aicode.common.DeleteRequest;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
@@ -100,7 +101,7 @@ public class UserController {
         ThrowUtils.throwIf(user == null, ErrorCode.NOT_FOUND_ERROR);
         return ResultUtils.success(user);
     }
-    
+
     /**
      * 根据 id 获取包装类
      */
@@ -127,61 +128,18 @@ public class UserController {
         return ResultUtils.success(true);
     }
 
-
-
-
     /**
-     * 根据主键删除用户。
-     *
-     * @param id 主键
-     * @return {@code true} 删除成功，{@code false} 删除失败
+     * 删除用户
      */
-    @DeleteMapping("remove/{id}")
-    public boolean remove(@PathVariable Long id) {
-        return userService.removeById(id);
+    @PostMapping("/delete")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest) {
+        if (deleteRequest == null || deleteRequest.getId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        boolean b = userService.removeById(deleteRequest.getId());
+        return ResultUtils.success(b);
     }
-
-    /**
-     * 根据主键更新用户。
-     *
-     * @param user 用户
-     * @return {@code true} 更新成功，{@code false} 更新失败
-     */
-    @PutMapping("update")
-    public boolean update(@RequestBody User user) {
-        return userService.updateById(user);
-    }
-
-    /**
-     * 查询所有用户。
-     *
-     * @return 所有数据
-     */
-    @GetMapping("list")
-    public List<User> list() {
-        return userService.list();
-    }
-
-    /**
-     * 根据主键获取用户。
-     *
-     * @param id 用户主键
-     * @return 用户详情
-     */
-    @GetMapping("getInfo/{id}")
-    public User getInfo(@PathVariable Long id) {
-        return userService.getById(id);
-    }
-
-    /**
-     * 分页查询用户。
-     *
-     * @param page 分页对象
-     * @return 分页对象
-     */
-    @GetMapping("page")
-    public Page<User> page(Page<User> page) {
-        return userService.page(page);
-    }
+    
 
 }
