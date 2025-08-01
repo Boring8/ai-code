@@ -3,7 +3,7 @@ package com.easen.aicode.aop;
 import com.easen.aicode.annotation.AuthCheck;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
-import com.easen.aicode.model.UserRoleEnum;
+import com.easen.aicode.model.enums.UserRoleEnum;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.service.UserService;
 import jakarta.annotation.Resource;
