@@ -1,6 +1,5 @@
 package com.easen.aicode.mapper;
 
-
 import com.easen.aicode.model.entity.App;
 import com.mybatisflex.core.BaseMapper;
 

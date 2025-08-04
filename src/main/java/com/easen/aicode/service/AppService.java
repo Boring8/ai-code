@@ -1,8 +1,12 @@
 package com.easen.aicode.service;
 
-
+import com.easen.aicode.model.dto.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
+import com.easen.aicode.model.vo.AppVO;
+import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
+
+import java.util.List;
 
 /**
  * 应用 服务层。
@@ -11,4 +15,36 @@ import com.mybatisflex.core.service.IService;
  */
 public interface AppService extends IService<App> {
 
+    /**
+     * 获取应用视图对象
+     *
+     * @param app 应用实体
+     * @return 应用视图对象
+     */
+    AppVO getAppVO(App app);
+
+    /**
+     * 获取应用视图对象列表
+     *
+     * @param appList 应用实体列表
+     * @return 应用视图对象列表
+     */
+    List<AppVO> getAppVOList(List<App> appList);
+
+    /**
+     * 获取查询条件
+     *
+     * @param appQueryRequest 查询请求
+     * @return 查询条件
+     */
+    QueryWrapper getQueryWrapper(AppQueryRequest appQueryRequest);
+
+    /**
+     * 验证用户是否有权限操作应用
+     *
+     * @param appId 应用id
+     * @param userId 用户id
+     * @return 是否有权限
+     */
+    boolean validateUserPermission(Long appId, Long userId);
 }

@@ -150,7 +150,7 @@ const goToLogin = () => {
 
 <style scoped>
 .register-page {
-  min-height: 100vh;
+  min-height: 88vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;

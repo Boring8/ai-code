@@ -1,7 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.easen.aicode.mapper.AppMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.easen.aicode.model.entity.App">
+        <id column="id" property="id"/>
+        <result column="appName" property="appName"/>
+        <result column="cover" property="cover"/>
+        <result column="initPrompt" property="initPrompt"/>
+        <result column="codeGenType" property="codeGenType"/>
+        <result column="deployKey" property="deployKey"/>
+        <result column="deployedTime" property="deployedTime"/>
+        <result column="priority" property="priority"/>
+        <result column="userId" property="userId"/>
+        <result column="editTime" property="editTime"/>
+        <result column="createTime" property="createTime"/>
+        <result column="updateTime" property="updateTime"/>
+        <result column="isDelete" property="isDelete"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, appName, cover, initPrompt, codeGenType, deployKey, deployedTime, priority, userId, editTime, createTime, updateTime, isDelete
+    </sql>
 
 </mapper>
