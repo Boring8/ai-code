@@ -1,0 +1,99 @@
+---
+alwaysApply: true
+---
+# Vue 代码生成规则
+
+## Vue 组件开发规则
+- 始终使用 Vue 3 的组合式 API (Composition API)
+- 使用 `<script setup lang="ts">` 语法
+- 优先使用 `ref()` 和 `reactive()` 进行响应式数据管理
+- 使用 `computed()` 进行计算属性
+- 使用 `watch()` 和 `watchEffect()` 进行副作用处理
+- 使用 `onMounted()`, `onUnmounted()` 等生命周期钩子
+- 使用 `defineProps()`, `defineEmits()`, `defineExpose()` 进行组件通信
+
+## Vue 组件模板规则
+- 使用 `<template>` 标签
+- 使用 `v-if`, `v-else`, `v-for` 等指令
+- 使用 `@click`, `@input` 等事件处理
+- 使用 `:class`, `:style` 等动态绑定
+- 使用 `v-model` 进行双向绑定
+
+## TypeScript 集成
+- 所有 Vue 组件文件使用 `.vue` 扩展名
+- 在 `<script>` 标签中添加 `lang="ts"`
+- 为 props 和 emits 定义 TypeScript 类型
+- 使用 `interface` 或 `type` 定义组件 props 类型
+
+## 样式规则
+- 使用 `<style scoped>` 进行组件样式隔离
+- 优先使用 CSS 类名而不是内联样式
+- 支持 CSS 预处理器（如 SCSS）
+
+## 示例代码结构
+```vue
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// 定义 props 类型
+interface Props {
+  title: string
+  count?: number
+}
+
+// 定义 emits 类型
+interface Emits {
+  (e: 'update', value: string): void
+  (e: 'delete'): void
+}
+
+// 定义 props 和 emits
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+// 响应式数据
+const message = ref('Hello Vue 3!')
+const items = ref<string[]>([])
+
+// 计算属性
+const itemCount = computed(() => items.value.length)
+
+// 方法
+const addItem = (item: string) => {
+  items.value.push(item)
+  emit('update', item)
+}
+
+// 生命周期
+onMounted(() => {
+  console.log('Component mounted')
+})
+</script>
+
+<template>
+  <div class="vue-component">
+    <h1>{{ props.title }}</h1>
+    <p>{{ message }}</p>
+    <p>Count: {{ itemCount }}</p>
+    <button @click="addItem('New Item')">Add Item</button>
+  </div>
+</template>
+
+<style scoped>
+.vue-component {
+  padding: 1rem;
+}
+</style>
+```
+
+## 禁止使用的语法
+- 不要使用 Vue 2 的选项式 API (Options API)
+- 不要使用 `data()`, `methods`, `computed`, `watch` 等选项
+- 不要使用 `this` 关键字
+- 不要使用 `Vue.extend()` 或 `new Vue()`
+
+## 项目特定规则
+- 使用 Pinia 进行状态管理
+- 使用 Vue Router 进行路由管理
+- 使用 Ant Design Vue 作为 UI 组件库
+- 遵循 ESLint 和 Prettier 代码规范 

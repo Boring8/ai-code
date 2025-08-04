@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, h } from 'vue'
-import { Menu, Button, Avatar, Space } from 'ant-design-vue'
-import { UserOutlined, HomeOutlined, SettingOutlined } from '@ant-design/icons-vue'
+import { ref, h, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Menu, Button, Avatar, Space, Dropdown } from 'ant-design-vue'
+import { UserOutlined, HomeOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import { useUserStore } from '@/stores/user'
 
 // 菜单配置
 const menuItems = ref([
@@ -19,25 +21,76 @@ const menuItems = ref([
   }
 ])
 
-// 用户信息（暂时使用模拟数据）
-const userInfo = ref({
-  name: '用户',
-  avatar: ''
-})
+const router = useRouter()
+const userStore = useUserStore()
+
+// 用户下拉菜单项
+const userMenuItems = [
+  {
+    key: 'profile',
+    label: '个人资料',
+    icon: () => h(UserOutlined)
+  },
+  {
+    key: 'settings',
+    label: '设置',
+    icon: () => h(SettingOutlined)
+  },
+  {
+    type: 'divider' as const
+  },
+  {
+    key: 'logout',
+    label: '退出登录',
+    icon: () => h(LogoutOutlined)
+  }
+]
 
 // 处理菜单点击
 const handleMenuClick = ({ key }: { key: string | number }) => {
   const menuItem = menuItems.value.find(item => item.key === key)
   if (menuItem) {
-    // 这里可以添加路由跳转逻辑
-    console.log('导航到:', menuItem.path)
+    router.push(menuItem.path)
+  }
+}
+
+// 处理用户菜单点击
+const handleUserMenuClick = ({ key }: { key: string | number }) => {
+  switch (key) {
+    case 'profile':
+      router.push('/profile')
+      break
+    case 'settings':
+      router.push('/settings')
+      break
+    case 'logout':
+      handleLogout()
+      break
   }
 }
 
 // 处理登录
 const handleLogin = () => {
-  console.log('用户登录')
+  router.push('/login')
 }
+
+// 处理注册
+const handleRegister = () => {
+  router.push('/register')
+}
+
+// 处理登出
+const handleLogout = async () => {
+  await userStore.logout()
+  router.push('/login')
+}
+
+// 组件挂载时获取用户信息
+onMounted(async () => {
+  if (!userStore.isLoggedIn) {
+    await userStore.getUserInfo()
+  }
+})
 </script>
 
 <template>
@@ -58,13 +111,26 @@ const handleLogin = () => {
     
     <div class="header-right">
       <Space>
-        <Avatar :src="userInfo.avatar" :size="32">
-          <template #icon><UserOutlined /></template>
-        </Avatar>
-        <span class="user-name">{{ userInfo.name }}</span>
-        <Button type="primary" @click="handleLogin">
-          登录
-        </Button>
+        <template v-if="userStore.isLoggedIn && userStore.userInfo">
+          <Dropdown :menu="{ items: userMenuItems, onClick: handleUserMenuClick }" placement="bottomRight">
+            <Space class="user-info">
+                             <Avatar :src="userStore.userInfo.userAvatar" :size="32">
+                <template #icon><UserOutlined /></template>
+              </Avatar>
+                             <span class="user-name">{{ userStore.userInfo.userName || userStore.userInfo.userAccount }}</span>
+            </Space>
+          </Dropdown>
+        </template>
+        <template v-else>
+          <Space>
+            <Button @click="handleRegister">
+              注册
+            </Button>
+            <Button type="primary" @click="handleLogin">
+              登录
+            </Button>
+          </Space>
+        </template>
       </Space>
     </div>
   </div>
@@ -118,6 +184,17 @@ const handleLogin = () => {
 .user-name {
   font-size: 14px;
   color: #666;
+}
+
+.user-info {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: #f5f5f5;
 }
 
 /* 响应式设计 */
