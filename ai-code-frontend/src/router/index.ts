@@ -20,11 +20,27 @@ const router = createRouter({
       component: () => import('@/views/Register.vue')
     },
     {
-      path: '/settings',
-      name: 'settings',
-      component: () => import('@/views/Settings.vue')
+      path: '/user-management',
+      name: 'userManagement',
+      component: () => import('@/views/UserManagement.vue'),
+      meta: { requiresAdmin: true }
+    },
+    {
+      path: '/user/edit/:id',
+      name: 'userEdit',
+      component: () => import('@/views/UserEdit.vue')
     }
   ],
+})
+
+// 路由守卫
+router.beforeEach(async (to, from, next) => {
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin) {
+    // 这里可以添加权限检查逻辑
+    // 暂时允许访问，在组件内部进行权限控制
+  }
+  next()
 })
 
 export default router

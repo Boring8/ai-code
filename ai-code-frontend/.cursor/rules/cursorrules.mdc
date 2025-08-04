@@ -5,6 +5,7 @@ alwaysApply: true
 
 ## Vue 组件开发规则
 - 始终使用 Vue 3 的组合式 API (Composition API)
+- 可以使用Ant Design Vue 组件库
 - 使用 `<script setup lang="ts">` 语法
 - 优先使用 `ref()` 和 `reactive()` 进行响应式数据管理
 - 使用 `computed()` 进行计算属性

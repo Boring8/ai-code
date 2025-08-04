@@ -1,71 +1,45 @@
 <script setup lang="ts">
-import { ref, h, onMounted } from 'vue'
+import { ref, h, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Menu, Button, Avatar, Space, Dropdown } from 'ant-design-vue'
-import { UserOutlined, HomeOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import { Menu, Button, Space } from 'ant-design-vue'
+import { HomeOutlined, TeamOutlined } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
+import UserAvatarMenu from './UserAvatarMenu.vue'
 
 // 菜单配置
-const menuItems = ref([
-  {
-    key: 'home',
-    icon: () => h(HomeOutlined),
-    label: '首页',
-    path: '/'
-  },
-  {
-    key: 'settings',
-    icon: () => h(SettingOutlined),
-    label: '设置',
-    path: '/settings'
+const menuItems = computed(() => {
+  const items = [
+    {
+      key: 'home',
+      icon: () => h(HomeOutlined),
+      label: '首页',
+      path: '/'
+    }
+  ]
+  
+  // 只有管理员可以看到用户管理菜单
+  if (userStore.canManageUsers) {
+    items.push({
+      key: 'userManagement',
+      icon: () => h(TeamOutlined),
+      label: '用户管理',
+      path: '/user-management'
+    })
   }
-])
+  
+
+  
+  return items
+})
 
 const router = useRouter()
 const userStore = useUserStore()
-
-// 用户下拉菜单项
-const userMenuItems = [
-  {
-    key: 'profile',
-    label: '个人资料',
-    icon: () => h(UserOutlined)
-  },
-  {
-    key: 'settings',
-    label: '设置',
-    icon: () => h(SettingOutlined)
-  },
-  {
-    type: 'divider' as const
-  },
-  {
-    key: 'logout',
-    label: '退出登录',
-    icon: () => h(LogoutOutlined)
-  }
-]
 
 // 处理菜单点击
 const handleMenuClick = ({ key }: { key: string | number }) => {
   const menuItem = menuItems.value.find(item => item.key === key)
   if (menuItem) {
     router.push(menuItem.path)
-  }
-}
-
-// 处理用户菜单点击
-const handleUserMenuClick = ({ key }: { key: string | number }) => {
-  switch (key) {
-    case 'profile':
-      router.push('/profile')
-      break
-    case 'settings':
-      router.push('/settings')
-      break
-    case 'logout':
-      handleLogout()
-      break
   }
 }
 
@@ -77,12 +51,6 @@ const handleLogin = () => {
 // 处理注册
 const handleRegister = () => {
   router.push('/register')
-}
-
-// 处理登出
-const handleLogout = async () => {
-  await userStore.logout()
-  router.push('/login')
 }
 
 // 组件挂载时获取用户信息
@@ -112,14 +80,7 @@ onMounted(async () => {
     <div class="header-right">
       <Space>
         <template v-if="userStore.isLoggedIn && userStore.userInfo">
-          <Dropdown :menu="{ items: userMenuItems, onClick: handleUserMenuClick }" placement="bottomRight">
-            <Space class="user-info">
-                             <Avatar :src="userStore.userInfo.userAvatar" :size="32">
-                <template #icon><UserOutlined /></template>
-              </Avatar>
-                             <span class="user-name">{{ userStore.userInfo.userName || userStore.userInfo.userAccount }}</span>
-            </Space>
-          </Dropdown>
+          <UserAvatarMenu :size="32" :show-name="true" />
         </template>
         <template v-else>
           <Space>

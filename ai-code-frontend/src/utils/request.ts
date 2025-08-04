@@ -1,12 +1,23 @@
 import axios from 'axios'
 import { message } from 'ant-design-vue'
 import config from '@/config'
+import JSONbig from 'json-bigint'
 
 // 创建 Axios 实例
 const myAxios = axios.create({
   baseURL: config.apiBaseURL,
   timeout: config.requestTimeout,
   withCredentials: true,
+  // 使用 json-bigint 处理大整数
+  transformResponse: [function (data) {
+    try {
+      // 使用 json-bigint 解析响应数据，将大整数转换为字符串
+      return JSONbig.parse(data)
+    } catch (err) {
+      // 如果解析失败，返回原始数据
+      return data
+    }
+  }]
 })
 
 // 全局请求拦截器
@@ -94,4 +105,25 @@ myAxios.interceptors.response.use(
   },
 )
 
-export default myAxios 
+export default myAxios
+
+// 工具函数：安全地将字符串ID转换为数字（用于比较等操作）
+export const safeParseInt = (value: string | number | undefined): number => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+// 工具函数：检查是否为有效的大整数字符串
+export const isValidBigInt = (value: string): boolean => {
+  return /^\d+$/.test(value) && value.length > 0
+}
+
+// 工具函数：格式化大整数显示（添加千分位分隔符）
+export const formatBigInt = (value: string | number): string => {
+  const str = String(value)
+  return str.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+} 

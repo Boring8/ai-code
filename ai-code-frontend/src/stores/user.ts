@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import * as userController from '@/api/userController'
 
 // 用户信息类型（使用新的 API 类型）
 export interface UserInfo {
-  id?: number
+  id?: string
   userAccount?: string
   userName?: string
   userAvatar?: string
@@ -24,11 +24,25 @@ export const useUserStore = defineStore('user', () => {
   // 加载状态
   const loading = ref(false)
 
+  // 计算属性：是否为管理员
+  const isAdmin = computed(() => {
+    return userInfo.value?.userRole === 'admin'
+  })
+
+  // 计算属性：是否为普通用户
+  const isUser = computed(() => {
+    return userInfo.value?.userRole === 'user'
+  })
+
+  // 计算属性：是否有权限访问用户管理
+  const canManageUsers = computed(() => {
+    return isAdmin.value
+  })
+
   // 获取用户信息
   const getUserInfo = async () => {
     try {
       loading.value = true
-      console.log(123456)
       const response = await userController.getLoginUser()
       const { code, data } = response.data
       
@@ -90,13 +104,22 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn.value = false
   }
 
+  // 更新用户信息
+  const updateUserInfo = (newUserInfo: UserInfo) => {
+    userInfo.value = { ...userInfo.value, ...newUserInfo }
+  }
+
   return {
     userInfo,
     isLoggedIn,
     loading,
+    isAdmin,
+    isUser,
+    canManageUsers,
     getUserInfo,
     login,
     logout,
-    clearUserInfo
+    clearUserInfo,
+    updateUserInfo
   }
 }) 
