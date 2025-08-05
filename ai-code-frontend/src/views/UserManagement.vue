@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { message, Modal, Form, Input, Select, Button, Table, Space, Avatar, Tag, Popconfirm } from 'ant-design-vue'
+import { message, Modal, Form, Input, Select, Button, Table, Space, Avatar, Tag, Popconfirm, Typography, Row, Col, Card, Spin, Empty, Pagination } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import * as userController from '@/api/userController'
 
+const { Title } = Typography
 const router = useRouter()
 const userStore = useUserStore()
 
@@ -20,13 +21,10 @@ if (!canManageUsers.value) {
 // 表格数据
 const userList = ref<API.UserVO[]>([])
 const loading = ref(false)
-const pagination = reactive({
+const pagination = ref({
   current: 1,
   pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+  total: 0
 })
 
 // 搜索表单
@@ -61,8 +59,8 @@ const fetchUserList = async () => {
   try {
     loading.value = true
     const response = await userController.listUserVoByPage({
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
+      pageNum: pagination.value.current,
+      pageSize: pagination.value.pageSize,
       userName: searchForm.userName || undefined,
       userAccount: searchForm.userAccount || undefined,
       userRole: searchForm.userRole || undefined,
@@ -72,7 +70,7 @@ const fetchUserList = async () => {
     const { code, data } = response.data
     if (code === 0 && data) {
       userList.value = data.records || []
-      pagination.total = data.totalRow || 0
+      pagination.value.total = data.totalRow || 0
     }
   } catch (error) {
     console.error('获取用户列表失败:', error)
@@ -84,7 +82,7 @@ const fetchUserList = async () => {
 
 // 搜索用户
 const handleSearch = () => {
-  pagination.current = 1
+  pagination.value.current = 1
   fetchUserList()
 }
 
@@ -96,14 +94,14 @@ const handleReset = () => {
     userRole: '',
     userProfile: ''
   })
-  pagination.current = 1
+  pagination.value.current = 1
   fetchUserList()
 }
 
 // 分页变化
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.value.current = page
+  pagination.value.pageSize = pageSize
   fetchUserList()
 }
 
@@ -130,7 +128,7 @@ const handleAddUser = async () => {
 }
 
 // 删除用户
-const handleDeleteUser = async (userId: string) => {
+const handleDeleteUser = async (userId: number) => {
   try {
     const response = await userController.deleteUser({ id: userId })
     const { code } = response.data
@@ -148,7 +146,7 @@ const handleDeleteUser = async (userId: string) => {
 }
 
 // 编辑用户
-const handleEditUser = (userId: string) => {
+const handleEditUser = (userId: number) => {
   router.push(`/user/edit/${userId}`)
 }
 
@@ -174,7 +172,7 @@ const columns = [
       src: record.userAvatar,
       size: 40,
       style: { cursor: 'pointer' },
-      onClick: () => handleEditUser(record.id!)
+      onClick: () => record.id && handleEditUser(record.id)
     }, {
       icon: () => h(UserOutlined)
     })
@@ -210,7 +208,11 @@ const columns = [
     title: '创建时间',
     dataIndex: 'createTime',
     key: 'createTime',
-    width: 180
+    width: 180,
+    customRender: ({ text }: { text: string }) => {
+      if (!text) return '-'
+      return new Date(text).toLocaleString('zh-CN')
+    }
   },
   {
     title: '操作',
@@ -220,21 +222,20 @@ const columns = [
     customRender: ({ record }: { record: API.UserVO }) => h(Space, {}, {
       default: () => [
         h(Button, {
-          type: 'link',
+          type: 'primary',
           size: 'small',
-          onClick: () => handleEditUser(record.id!)
+          onClick: () => record.id && handleEditUser(record.id)
         }, {
           icon: () => h(EditOutlined),
           default: () => '编辑'
         }),
         h(Popconfirm, {
           title: '确定要删除这个用户吗？',
-          onConfirm: () => handleDeleteUser(record.id!),
+          onConfirm: () => record.id && handleDeleteUser(record.id),
           okText: '确定',
           cancelText: '取消'
         }, {
           default: () => h(Button, {
-            type: 'link',
             size: 'small',
             danger: true
           }, {
@@ -268,95 +269,113 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="user-management">
-    <!-- 背景装饰 -->
-    <div class="background-decoration">
-      <div class="decoration-circle circle-1"></div>
-      <div class="decoration-circle circle-2"></div>
-      <div class="decoration-circle circle-3"></div>
-    </div>
-
-    <div class="page-header">
-      <div class="header-content">
-        <h1>用户管理</h1>
-        <p class="header-subtitle">管理系统用户信息和权限</p>
+  <div class="user-management-page">
+    <!-- 页面标题区域 -->
+    <div class="header-section">
+      <div class="title-container">
+        <Title :level="1" class="main-title">
+          用户管理
+          <span class="title-icon">👥</span>
+        </Title>
+        <p class="subtitle">
+          管理系统用户信息和权限，添加、编辑和删除用户
+        </p>
       </div>
-      <Button 
-        type="primary" 
-        @click="addModalVisible = true"
-        class="add-user-btn"
-      >
-        <template #icon><PlusOutlined /></template>
-        添加用户
-      </Button>
     </div>
 
-    <!-- 搜索区域 -->
-    <div class="search-section">
-      <div class="search-title">
-        <SearchOutlined class="search-icon" />
-        <span>搜索筛选</span>
-      </div>
-      <Form layout="inline" :model="searchForm" class="search-form">
-        <Form.Item label="用户名">
-          <Input 
-            v-model:value="searchForm.userName" 
-            placeholder="请输入用户名"
-            allow-clear
-            class="search-input"
-          />
-        </Form.Item>
-        <Form.Item label="账号">
-          <Input 
-            v-model:value="searchForm.userAccount" 
-            placeholder="请输入账号"
-            allow-clear
-            class="search-input"
-          />
-        </Form.Item>
-        <Form.Item label="角色">
-          <Select 
-            v-model:value="searchForm.userRole" 
-            placeholder="请选择角色"
-            allow-clear
-            style="width: 120px"
-            class="search-select"
-          >
-            <Select.Option value="user">普通用户</Select.Option>
-            <Select.Option value="admin">管理员</Select.Option>
-          </Select>
-        </Form.Item>
-        <Form.Item label="个人简介">
-          <Input 
-            v-model:value="searchForm.userProfile" 
-            placeholder="请输入个人简介"
-            allow-clear
-            class="search-input"
-          />
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" @click="handleSearch" class="search-btn">
-            <template #icon><SearchOutlined /></template>
-            搜索
-          </Button>
-        </Form.Item>
-        <Form.Item>
-          <Button @click="handleReset" class="reset-btn">重置</Button>
-        </Form.Item>
-      </Form>
+    <!-- 操作区域 -->
+    <div class="action-section">
+      <Card class="action-card">
+        <Row :gutter="16" align="middle">
+          <Col :span="20">
+            <Form layout="inline" :model="searchForm" class="search-form">
+              <Form.Item label="用户名">
+                <Input 
+                  v-model:value="searchForm.userName" 
+                  placeholder="请输入用户名"
+                  allow-clear
+                  class="search-input"
+                />
+              </Form.Item>
+              <Form.Item label="账号">
+                <Input 
+                  v-model:value="searchForm.userAccount" 
+                  placeholder="请输入账号"
+                  allow-clear
+                  class="search-input"
+                />
+              </Form.Item>
+              <Form.Item label="角色">
+                <Select 
+                  v-model:value="searchForm.userRole" 
+                  placeholder="请选择角色"
+                  allow-clear
+                  style="width: 120px"
+                  class="search-select"
+                >
+                  <Select.Option value="user">普通用户</Select.Option>
+                  <Select.Option value="admin">管理员</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" @click="handleSearch" class="search-btn">
+                  <template #icon><SearchOutlined /></template>
+                  搜索
+                </Button>
+              </Form.Item>
+              <Form.Item>
+                <Button @click="handleReset" class="reset-btn">重置</Button>
+              </Form.Item>
+            </Form>
+          </Col>
+          <Col :span="4" style="text-align: right">
+            <Button 
+              type="primary" 
+              size="large"
+              @click="addModalVisible = true"
+            >
+              <template #icon><PlusOutlined /></template>
+              添加用户
+            </Button>
+          </Col>
+        </Row>
+      </Card>
     </div>
 
-    <!-- 用户列表表格 -->
-    <div class="table-section">
-      <Table
-        :columns="columns"
-        :data-source="userList"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-        class="user-table"
-      />
+    <!-- 用户列表 -->
+    <div class="content-section">
+      <Card class="content-card">
+        <Spin :spinning="loading">
+          <div v-if="userList.length > 0">
+            <Table
+              :columns="columns"
+              :data-source="userList"
+              :pagination="false"
+              row-key="id"
+              :scroll="{ x: 1000 }"
+              class="user-table"
+            />
+            
+            <div class="pagination-container">
+              <Pagination
+                v-model:current="pagination.current"
+                v-model:page-size="pagination.pageSize"
+                :total="pagination.total"
+                :show-size-changer="true"
+                :show-quick-jumper="true"
+                :show-total="(total: number, range: [number, number]) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`"
+                @change="handlePageChange"
+              />
+            </div>
+          </div>
+          
+          <Empty 
+            v-else 
+            description="暂无用户数据"
+            :image="Empty.PRESENTED_IMAGE_SIMPLE"
+          />
+        </Spin>
+      </Card>
     </div>
 
     <!-- 添加用户模态框 -->
@@ -402,141 +421,67 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.user-management {
-  padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 88vh;
-  position: relative;
-  overflow: hidden;
+.user-management-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e3f2fd 0%, #e8f5e8 100%);
+  padding: 24px;
 }
 
-/* 背景装饰 */
-.background-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 0;
+.header-section {
+  text-align: center;
+  margin-bottom: 32px;
 }
 
-.decoration-circle {
-  position: absolute;
+.title-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.main-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.title-icon {
+  font-size: 2rem;
+  background: #1890ff;
+  color: white;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  animation: float 6s ease-in-out infinite;
-}
-
-.circle-1 {
-  width: 150px;
-  height: 150px;
-  top: 5%;
-  right: 5%;
-  animation-delay: 0s;
-}
-
-.circle-2 {
-  width: 100px;
-  height: 100px;
-  top: 50%;
-  left: 3%;
-  animation-delay: 2s;
-}
-
-.circle-3 {
-  width: 80px;
-  height: 80px;
-  top: 20%;
-  left: 50%;
-  animation-delay: 4s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-15px); }
-}
-
-.page-header {
+  width: 50px;
+  height: 50px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  justify-content: center;
 }
 
-.header-content h1 {
-  margin: 0;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-}
-
-.header-subtitle {
-  margin: 2px 0 0 0;
+.subtitle {
+  font-size: 1.1rem;
   color: #666;
-  font-size: 12px;
-  font-weight: 400;
+  margin: 0;
 }
 
-.add-user-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border: none;
-  border-radius: 6px;
-  padding: 0 20px;
-  height: 36px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+.action-section {
+  max-width: 1200px;
+  margin: 0 auto 24px;
 }
 
-.add-user-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.search-section {
-  margin-bottom: 16px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+.action-card {
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.search-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-.search-icon {
-  color: #667eea;
-  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: none;
 }
 
 .search-form {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
 }
 
 .search-input,
@@ -548,22 +493,21 @@ onMounted(() => {
 
 .search-input:focus,
 .search-select:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
 .search-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #1890ff;
   border: none;
   border-radius: 6px;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .search-btn:hover {
+  background: #40a9ff;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .reset-btn {
@@ -577,135 +521,36 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-.table-section {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+.content-section {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.content-card {
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  position: relative;
-  z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: none;
 }
 
 .user-table {
-  border-radius: 12px;
+  margin-bottom: 24px;
 }
 
-/* 深度样式覆盖 */
-:deep(.ant-table-thead > tr > th) {
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-  font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #e8e8e8;
-  padding: 12px 8px;
-  font-size: 13px;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  padding: 10px 8px;
+.user-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
-  transition: all 0.3s ease;
-  font-size: 13px;
-}
-
-:deep(.ant-table-tbody > tr:hover > td) {
-  background: linear-gradient(135deg, #f0f8ff, #e6f3ff);
-  transform: scale(1.005);
-}
-
-/* 创建时间列样式 */
-:deep(.ant-table-tbody > tr > td:nth-child(6)) {
-  background: linear-gradient(135deg, #fff5f5, #ffe8e8);
-  border-left: 2px solid #ff6b6b;
-  font-weight: 500;
-  color: #d63384;
-}
-
-/* 操作列样式 */
-:deep(.ant-table-tbody > tr > td:nth-child(7)) {
-  background: linear-gradient(135deg, #fff5f5, #ffe8e8);
-  border-left: 2px solid #ff6b6b;
-}
-
-:deep(.ant-table-tbody > tr:hover > td:nth-child(6)),
-:deep(.ant-table-tbody > tr:hover > td:nth-child(7)) {
-  background: linear-gradient(135deg, #ffe8e8, #ffd6d6);
-  transform: scale(1.01);
-}
-
-/* 分页样式 */
-:deep(.ant-pagination) {
-  background: linear-gradient(135deg, #fff5f5, #ffe8e8);
-  padding: 12px 16px;
-  border-top: 2px solid #ff6b6b;
-  margin: 0;
-}
-
-:deep(.ant-pagination-total-text) {
-  color: #d63384;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-:deep(.ant-pagination-item) {
-  border-radius: 6px;
-  border: 2px solid #e8e8e8;
-  transition: all 0.3s ease;
-  min-width: 28px;
-  height: 28px;
-  line-height: 26px;
-}
-
-:deep(.ant-pagination-item:hover) {
-  border-color: #ff6b6b;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
-}
-
-:deep(.ant-pagination-item-active) {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-  border-color: #ff6b6b;
-  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
-}
-
-:deep(.ant-pagination-item-active a) {
-  color: white;
   font-weight: 600;
 }
 
-:deep(.ant-pagination-prev),
-:deep(.ant-pagination-next) {
-  border-radius: 6px;
-  border: 2px solid #e8e8e8;
-  transition: all 0.3s ease;
-  min-width: 28px;
-  height: 28px;
-  line-height: 26px;
+.user-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f5f5f5;
 }
 
-:deep(.ant-pagination-prev:hover),
-:deep(.ant-pagination-next:hover) {
-  border-color: #ff6b6b;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
-}
-
-:deep(.ant-pagination-options) {
-  margin-left: 12px;
-}
-
-:deep(.ant-select-selector) {
-  border-radius: 6px !important;
-  border: 2px solid #e8e8e8 !important;
-  transition: all 0.3s ease;
-  height: 28px !important;
-  line-height: 26px !important;
-}
-
-:deep(.ant-select-focused .ant-select-selector) {
-  border-color: #ff6b6b !important;
-  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.1) !important;
+.pagination-container {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
 }
 
 /* 角色标签样式 */
@@ -730,29 +575,6 @@ onMounted(() => {
   box-shadow: 0 1px 4px rgba(78, 205, 196, 0.3);
 }
 
-/* 操作按钮样式 */
-:deep(.ant-btn-link) {
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  font-size: 12px;
-  padding: 2px 6px;
-}
-
-:deep(.ant-btn-link:hover) {
-  background: rgba(102, 126, 234, 0.1);
-  transform: translateY(-1px);
-}
-
-:deep(.ant-btn-dangerous) {
-  color: #ff6b6b;
-}
-
-:deep(.ant-btn-dangerous:hover) {
-  background: rgba(255, 107, 107, 0.1);
-  color: #ee5a24;
-}
-
 /* 模态框样式 */
 :deep(.ant-modal-content) {
   border-radius: 12px;
@@ -760,7 +582,7 @@ onMounted(() => {
 }
 
 :deep(.ant-modal-header) {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #1890ff;
   border-bottom: none;
   padding: 16px 20px;
 }
@@ -781,23 +603,26 @@ onMounted(() => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .user-management {
-    padding: 12px;
+  .user-management-page {
+    padding: 16px;
   }
   
-  .page-header {
-    padding: 12px 16px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .main-title {
+    font-size: 2rem;
   }
   
-  .header-content h1 {
-    font-size: 20px;
+  .title-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
   }
   
-  .search-section {
-    padding: 12px 16px;
+  .action-card {
+    padding: 16px;
+  }
+  
+  .content-card {
+    padding: 16px;
   }
   
   .search-form {
@@ -808,11 +633,19 @@ onMounted(() => {
   .search-form .ant-form-item {
     margin-bottom: 12px;
   }
+}
+
+@media (max-width: 576px) {
+  .main-title {
+    font-size: 1.5rem;
+    flex-direction: column;
+    gap: 8px;
+  }
   
-  :deep(.ant-table-thead > tr > th),
-  :deep(.ant-table-tbody > tr > td) {
-    padding: 8px 6px;
-    font-size: 12px;
+  .title-icon {
+    width: 35px;
+    height: 35px;
+    font-size: 1.2rem;
   }
 }
 </style> 

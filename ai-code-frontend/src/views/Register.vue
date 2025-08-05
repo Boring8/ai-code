@@ -21,7 +21,7 @@ const formData = reactive({
 const loading = ref(false)
 
 // 表单规则
-const rules = {
+const rules: any = {
   userAccount: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' },
@@ -150,8 +150,8 @@ const goToLogin = () => {
 
 <style scoped>
 .register-page {
-  min-height: 88vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e3f2fd 0%, #e8f5e8 100%);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -70,7 +70,12 @@ const handleMenuMouseLeave = () => {
 
 // 处理修改用户信息
 const handleEditProfile = () => {
-  // 取消跳转功能，只关闭菜单
+  // 跳转到用户编辑页面
+  if (userStore.userInfo?.id) {
+    router.push(`/user/edit/${userStore.userInfo.id}`)
+  } else {
+    message.error('用户信息获取失败')
+  }
   hideMenu(0)
 }
 

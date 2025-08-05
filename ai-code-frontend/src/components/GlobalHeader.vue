@@ -2,7 +2,7 @@
 import { ref, h, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Menu, Button, Space } from 'ant-design-vue'
-import { HomeOutlined, TeamOutlined } from '@ant-design/icons-vue'
+import { HomeOutlined, TeamOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import UserAvatarMenu from './UserAvatarMenu.vue'
 
@@ -27,7 +27,15 @@ const menuItems = computed(() => {
     })
   }
   
-
+  // 只有管理员可以看到应用管理菜单
+  if (userStore.canManageUsers) {
+    items.push({
+      key: 'appManagement',
+      icon: () => h(AppstoreOutlined),
+      label: '应用管理',
+      path: '/app-management'
+    })
+  }
   
   return items
 })

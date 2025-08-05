@@ -29,6 +29,22 @@ const router = createRouter({
       path: '/user/edit/:id',
       name: 'userEdit',
       component: () => import('@/views/UserEdit.vue')
+    },
+    {
+      path: '/app/chat/:id',
+      name: 'appChat',
+      component: () => import('@/views/AppChat.vue')
+    },
+    {
+      path: '/app/edit/:id',
+      name: 'appEdit',
+      component: () => import('@/views/AppEdit.vue')
+    },
+    {
+      path: '/app-management',
+      name: 'appManagement',
+      component: () => import('@/views/AppManagement.vue'),
+      meta: { requiresAdmin: true }
     }
   ],
 })

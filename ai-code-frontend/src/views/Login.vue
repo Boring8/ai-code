@@ -22,7 +22,7 @@ const formData = reactive({
 const loading = ref(false)
 
 // 表单规则
-const rules = {
+const rules: any = {
   userAccount: [
     { required: true, message: '请输入用户名', trigger: 'blur' }
   ],
@@ -119,8 +119,8 @@ const goToRegister = () => {
 
 <style scoped>
 .login-page {
-    min-height: 88vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e3f2fd 0%, #e8f5e8 100%);
   display: flex;
   align-items: center;
   justify-content: center;
