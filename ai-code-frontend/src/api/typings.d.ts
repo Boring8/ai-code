@@ -1,6 +1,6 @@
 declare namespace API {
   type App = {
-    id?: string
+    id?: number
     appName?: string
     cover?: string
     initPrompt?: string
@@ -8,7 +8,7 @@ declare namespace API {
     deployKey?: string
     deployedTime?: string
     priority?: number
-    userId?: string
+    userId?: number
     editTime?: string
     createTime?: string
     updateTime?: string
@@ -23,7 +23,7 @@ declare namespace API {
   }
 
   type AppDeployRequest = {
-    appId?: string
+    appId?: number
   }
 
   type AppQueryRequest = {
@@ -31,29 +31,31 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: string
+    id?: number
     appName?: string
     codeGenType?: string
-    userId?: string
+    userId?: number
     priority?: number
+    initPrompt?: string
   }
 
   type AppUpdateRequest = {
-    id?: string
+    id?: number
     appName?: string
     cover?: string
     priority?: number
   }
 
   type AppVO = {
-    id?: string
+    id?: number
     appName?: string
     cover?: string
     codeGenType?: string
     deployKey?: string
     deployedTime?: string
     priority?: number
-    userId?: string
+    userId?: number
+    initPrompt?: string
     createTime?: string
     updateTime?: string
   }
@@ -84,7 +86,7 @@ declare namespace API {
 
   type BaseResponseLong = {
     code?: number
-    data?: string
+    data?: number
     message?: string
   }
 
@@ -124,11 +126,11 @@ declare namespace API {
   }
 
   type DeleteRequest = {
-    id?: string
+    id?: number
   }
 
   type getAppByIdAdminParams = {
-    id: string
+    id: number
   }
 
   type getAppByIdParams = {
@@ -136,15 +138,15 @@ declare namespace API {
   }
 
   type getUserByIdParams = {
-    id: string
+    id: number
   }
 
   type getUserVOByIdParams = {
-    id: string
+    id: number
   }
 
   type LoginUserVO = {
-    id?: string
+    id?: number
     userAccount?: string
     userName?: string
     userAvatar?: string
@@ -174,8 +176,12 @@ declare namespace API {
 
   type ServerSentEventString = true
 
+  type serveStaticResourceParams = {
+    deployKey: string
+  }
+
   type User = {
-    id?: string
+    id?: number
     userAccount?: string
     userPassword?: string
     userName?: string
@@ -206,7 +212,7 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: string
+    id?: number
     userName?: string
     userAccount?: string
     userProfile?: string
@@ -220,7 +226,7 @@ declare namespace API {
   }
 
   type UserUpdateRequest = {
-    id?: string
+    id?: number
     userName?: string
     userAvatar?: string
     userProfile?: string
@@ -228,7 +234,7 @@ declare namespace API {
   }
 
   type UserVO = {
-    id?: string
+    id?: number
     userAccount?: string
     userName?: string
     userAvatar?: string

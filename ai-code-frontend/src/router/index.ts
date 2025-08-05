@@ -1,62 +1,51 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '@/views/Home.vue'
+import HomePage from '@/pages/HomePage.vue'
+import UserLoginPage from '@/pages/user/UserLoginPage.vue'
+import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
+import UserManagePage from '@/pages/admin/UserManagePage.vue'
+import AppManagePage from '@/pages/admin/AppManagePage.vue'
+import AppChatPage from '@/pages/app/AppChatPage.vue'
+import AppEditPage from '@/pages/app/AppEditPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: Home
+      name: '主页',
+      component: HomePage,
     },
     {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/Login.vue')
+      path: '/user/login',
+      name: '用户登录',
+      component: UserLoginPage,
     },
     {
-      path: '/register',
-      name: 'register',
-      component: () => import('@/views/Register.vue')
+      path: '/user/register',
+      name: '用户注册',
+      component: UserRegisterPage,
     },
     {
-      path: '/user-management',
-      name: 'userManagement',
-      component: () => import('@/views/UserManagement.vue'),
-      meta: { requiresAdmin: true }
+      path: '/admin/userManage',
+      name: '用户管理',
+      component: UserManagePage,
     },
     {
-      path: '/user/edit/:id',
-      name: 'userEdit',
-      component: () => import('@/views/UserEdit.vue')
+      path: '/admin/appManage',
+      name: '应用管理',
+      component: AppManagePage,
     },
     {
       path: '/app/chat/:id',
-      name: 'appChat',
-      component: () => import('@/views/AppChat.vue')
+      name: '应用对话',
+      component: AppChatPage,
     },
     {
       path: '/app/edit/:id',
-      name: 'appEdit',
-      component: () => import('@/views/AppEdit.vue')
+      name: '编辑应用',
+      component: AppEditPage,
     },
-    {
-      path: '/app-management',
-      name: 'appManagement',
-      component: () => import('@/views/AppManagement.vue'),
-      meta: { requiresAdmin: true }
-    }
   ],
-})
-
-// 路由守卫
-router.beforeEach(async (to, from, next) => {
-  // 检查是否需要管理员权限
-  if (to.meta.requiresAdmin) {
-    // 这里可以添加权限检查逻辑
-    // 暂时允许访问，在组件内部进行权限控制
-  }
-  next()
 })
 
 export default router

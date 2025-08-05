@@ -1,60 +1,48 @@
+<template>
+  <a-layout class="basic-layout">
+    <!-- 顶部导航栏 -->
+    <GlobalHeader />
+    <!-- 主要内容区域 -->
+    <a-layout-content class="main-content">
+      <router-view />
+    </a-layout-content>
+    <!-- 底部版权信息 -->
+    <GlobalFooter />
+  </a-layout>
+</template>
+
 <script setup lang="ts">
-import { Layout } from 'ant-design-vue'
 import GlobalHeader from '@/components/GlobalHeader.vue'
 import GlobalFooter from '@/components/GlobalFooter.vue'
-
-const { Header, Content, Footer } = Layout
 </script>
-
-<template>
-  <Layout class="basic-layout">
-    <Header class="layout-header">
-      <GlobalHeader />
-    </Header>
-    
-    <Content class="layout-content">
-      <router-view />
-    </Content>
-    
-    <Footer class="layout-footer">
-      <GlobalFooter />
-    </Footer>
-  </Layout>
-</template>
 
 <style scoped>
 .basic-layout {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 50%, #f5f9ff 100%);
   min-height: 100vh;
 }
 
-.layout-header {
+.main-content {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  margin: 0;
+  position: relative;
+}
+
+/* 添加背景装饰 */
+.main-content::before {
+  content: '';
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
-  padding: 0;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(24, 144, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(64, 169, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(105, 192, 255, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
-
-.layout-content {
-  margin-top: 64px;
-  min-height: calc(100vh - 64px - 70px);
-  padding: 24px;
-  background: #f0f2f5;
-}
-
-.layout-footer {
-  padding: 0;
-  background: #fff;
-  border-top: 1px solid #f0f0f0;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .layout-content {
-    padding: 16px;
-  }
-}
-</style> 
+</style>
