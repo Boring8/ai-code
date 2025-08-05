@@ -53,6 +53,8 @@ public class AppVO implements Serializable {
      */
     private Long userId;
 
+
+    private String initPrompt;
     /**
      * 创建时间
      */

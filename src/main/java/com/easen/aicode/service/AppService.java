@@ -17,6 +17,8 @@ import java.util.List;
  */
 public interface AppService extends IService<App> {
 
+    String deployApp(Long appId, User loginUser);
+
     /**
      * 获取应用视图对象
      *
