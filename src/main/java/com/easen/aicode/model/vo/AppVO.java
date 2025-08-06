@@ -54,6 +54,7 @@ public class AppVO implements Serializable {
     /**
      * 创建用户id
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
 
