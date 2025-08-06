@@ -77,6 +77,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatRelativeTime } from '@/utils/time'
+import { toAppIdString } from '@/utils/appIdUtils'
 
 interface Props {
   app: API.AppVO
@@ -107,7 +108,9 @@ const timeLabel = computed(() => {
 })
 
 const handleViewChat = () => {
-  emit('view-chat', props.app.id)
+  // 确保AppId在传递时保持字符串格式，避免精度丢失
+  const appIdStr = toAppIdString(props.app.id)
+  emit('view-chat', appIdStr)
 }
 
 const handleViewWork = () => {

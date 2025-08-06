@@ -24,6 +24,7 @@ export async function listAppChatHistory(
   options?: { [key: string]: any }
 ) {
   const { appId: param0, ...queryParams } = params
+  // 确保appId在URL中保持字符串格式，避免精度丢失
   return request<API.BaseResponsePageChatHistory>(`/chatHistory/app/${param0}`, {
     method: 'GET',
     params: {

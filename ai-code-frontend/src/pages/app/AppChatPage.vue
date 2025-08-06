@@ -154,8 +154,9 @@ import request from '@/request'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import AppDetailModal from '@/components/AppDetailModal.vue'
 import DeploySuccessModal from '@/components/DeploySuccessModal.vue'
-import aiAvatar from '@/assets/easen-logo.png'
+import aiAvatar from '@/assets/logo.png'
 import { API_BASE_URL, getStaticPreviewUrl } from '@/config/env'
+import { toAppIdNumber, toAppIdString, getAppIdForApi } from '@/utils/appIdUtils'
 
 import {
   CloudUploadOutlined,
@@ -223,7 +224,8 @@ const fetchAppInfo = async () => {
   appId.value = id
 
   try {
-    const res = await getAppById({ id: id as unknown as number })
+    // 使用智能AppId处理，大数值保持字符串格式，小数值转换为number
+    const res = await getAppById({ id: getAppIdForApi(id) as string })
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
 
@@ -420,8 +422,9 @@ const deployApp = async () => {
 
   deploying.value = true
   try {
+    // 使用智能AppId处理，大数值保持字符串格式，小数值转换为number
     const res = await deployAppApi({
-      appId: appId.value as unknown as number,
+      appId: getAppIdForApi(appId.value) as string,
     })
 
     if (res.data.code === 0 && res.data.data) {

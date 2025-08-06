@@ -1,6 +1,8 @@
 package com.easen.aicode.model.vo;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import org.apache.catalina.User;
 
@@ -13,6 +15,7 @@ public class LoginUserVO implements Serializable {
     /**
      * 用户 id
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /**
