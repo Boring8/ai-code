@@ -27,7 +27,22 @@
       <div class="chat-section">
         <!-- 消息区域 -->
         <div class="messages-container" ref="messagesContainer">
-          <div v-for="(message, index) in messages" :key="index" class="message-item">
+          <!-- 加载更多按钮 -->
+          <div v-if="hasMoreHistory" class="load-more-container">
+            <a-button 
+              type="link" 
+              @click="loadMoreHistory" 
+              :loading="loadingHistory"
+              size="small"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              加载更多历史消息
+            </a-button>
+          </div>
+
+          <div v-for="(message, index) in messages" :key="message.id || index" class="message-item">
             <div v-if="message.type === 'user'" class="user-message">
               <div class="message-content">{{ message.content }}</div>
               <div class="message-avatar">
@@ -148,6 +163,7 @@ import {
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
 } from '@/api/appController'
+import { listAppChatHistory } from '../../api/chatHistoryController'
 import { CodeGenTypeEnum } from '@/utils/codeGenTypes'
 import request from '@/request'
 
@@ -163,6 +179,7 @@ import {
   SendOutlined,
   ExportOutlined,
   InfoCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -175,16 +192,22 @@ const appId = ref<string>()
 
 // 对话相关
 interface Message {
+  id?: number
   type: 'user' | 'ai'
   content: string
   loading?: boolean
+  createTime?: string
 }
 
 const messages = ref<Message[]>([])
 const userInput = ref('')
 const isGenerating = ref(false)
 const messagesContainer = ref<HTMLElement>()
-const hasInitialConversation = ref(false) // 标记是否已经进行过初始对话
+
+// 对话历史相关
+const loadingHistory = ref(false)
+const hasMoreHistory = ref(false)
+const lastCreateTime = ref<string>('')
 
 // 预览相关
 const previewUrl = ref('')
@@ -229,13 +252,17 @@ const fetchAppInfo = async () => {
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
 
-      // 检查是否有view=1参数，如果有则不自动发送初始提示词
-      const isViewMode = route.query.view === '1'
+      // 加载对话历史
+      await loadChatHistory()
 
-      // 自动发送初始提示词（除非是查看模式或已经进行过初始对话）
-      if (appInfo.value.initPrompt && !isViewMode && !hasInitialConversation.value) {
-        hasInitialConversation.value = true
+      // 检查是否需要自动发送初始提示词
+      if (appInfo.value.initPrompt && isOwner.value && messages.value.length === 0) {
         await sendInitialMessage(appInfo.value.initPrompt)
+      }
+
+      // 如果有至少2条对话记录，展示网站
+      if (messages.value.length >= 2) {
+        updatePreview()
       }
     } else {
       message.error('获取应用信息失败')
@@ -246,6 +273,77 @@ const fetchAppInfo = async () => {
     message.error('获取应用信息失败')
     router.push('/')
   }
+}
+
+// 加载对话历史
+const loadChatHistory = async (loadMore = false) => {
+  if (!appId.value) return
+
+  loadingHistory.value = true
+  try {
+    const params: API.listAppChatHistoryParams = {
+      appId: appId.value,
+      pageSize: 10,
+    }
+
+    // 如果是加载更多，添加游标参数
+    if (loadMore && lastCreateTime.value) {
+      params.lastCreateTime = lastCreateTime.value
+    }
+
+    const res = await listAppChatHistory(params)
+    
+    if (res.data.code === 0 && res.data.data) {
+      const historyData = res.data.data
+      const historyMessages = historyData.records || []
+      
+      // 转换历史消息格式
+      const formattedMessages: Message[] = historyMessages.map(msg => ({
+        id: msg.id,
+        type: msg.messageType === 'user' ? 'user' : 'ai',
+        content: msg.message || '',
+        createTime: msg.createTime,
+      }))
+
+      if (loadMore) {
+        // 加载更多时，将新消息插入到现有消息前面
+        // 后端返回的是按时间倒序排列（最新的在前），所以需要反转顺序
+        // 这样插入到前面的就是更老的消息
+        messages.value.unshift(...formattedMessages.reverse())
+      } else {
+        // 首次加载时，直接替换消息列表
+        // 后端返回的是按时间倒序排列，需要反转确保老消息在上方
+        messages.value = formattedMessages.reverse()
+      }
+
+      // 更新分页信息
+      hasMoreHistory.value = historyData.totalRow ? messages.value.length < historyData.totalRow : false
+      
+      // 更新游标
+      if (historyMessages.length > 0) {
+        // 由于我们反转了消息顺序，所以最老的消息现在是数组的第一个元素
+        const oldestMessage = historyMessages[0]
+        lastCreateTime.value = oldestMessage.createTime || ''
+      }
+
+      await nextTick()
+      if (!loadMore) {
+        scrollToBottom()
+      }
+    } else {
+      message.error('加载对话历史失败：' + res.data.message)
+    }
+  } catch (error) {
+    console.error('加载对话历史失败：', error)
+    message.error('加载对话历史失败')
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+// 加载更多历史消息
+const loadMoreHistory = async () => {
+  await loadChatHistory(true)
 }
 
 // 发送初始消息
@@ -558,6 +656,14 @@ onUnmounted(() => {
   padding: 16px;
   overflow-y: auto;
   scroll-behavior: smooth;
+}
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 12px;
 }
 
 .message-item {

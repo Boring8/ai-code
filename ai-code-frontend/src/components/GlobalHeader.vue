@@ -6,7 +6,7 @@
         <RouterLink to="/" class="logo-link">
           <div class="header-left">
             <div class="logo-container">
-              <img src="/src/assets/easen-logo.png" alt="AI Code" class="logo-image" />
+              <span class="logo-text">AI Code</span>
             </div>
           </div>
         </RouterLink>
@@ -84,6 +84,11 @@ const originItems = [
     label: '应用管理',
     title: '应用管理',
   },
+  {
+    key: '/admin/chatHistoryManage',
+    label: '对话管理',
+    title: '对话管理',
+  },
 
 ]
 
@@ -158,10 +163,14 @@ const doLogout = async () => {
   gap: 8px;
 }
 
-.logo-image {
-  height: 60px;
-  width: auto;
-  object-fit: contain;
+.logo-text {
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
 }
 
 .nav-menu {
@@ -241,8 +250,8 @@ const doLogout = async () => {
     padding: 0 16px;
   }
   
-  .logo-image {
-    height: 28px;
+  .logo-text {
+    font-size: 20px;
   }
   
   .nav-menu {
