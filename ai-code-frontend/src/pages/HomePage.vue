@@ -115,7 +115,7 @@ const loadFeaturedApps = async () => {
       pageSize: featuredAppsPage.pageSize,
       sortField: 'createTime',
       sortOrder: 'desc',
-      priority: 99
+      priority: 99,
     })
 
     if (res.data.code === 0 && res.data.data) {
@@ -185,28 +185,17 @@ onMounted(() => {
                 优化
               </a-button>
             </div>
-            <div class="right-actions">
-              <div class="mode-selector">
-                <a-select
-                  v-model:value="codeGenType"
-                  :options="codeGenTypeOptions"
-                  size="small"
-                  class="mode-select"
-                  placeholder="选择模式"
-                />
-              </div>
-              <a-button 
-                type="primary" 
-                size="large" 
-                @click="createApp" 
-                :loading="creating"
-                class="submit-btn"
-              >
-                <template #icon>
-                  <span class="submit-icon">▶</span>
-                </template>
-              </a-button>
-            </div>
+            <a-button 
+              type="primary" 
+              size="large" 
+              @click="createApp" 
+              :loading="creating"
+              class="submit-btn"
+            >
+              <template #icon>
+                <span class="submit-icon">▶</span>
+              </template>
+            </a-button>
           </div>
         </div>
       </div>
@@ -384,38 +373,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-.right-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.mode-selector {
-  display: flex;
-  align-items: center;
-}
-
-.mode-select {
-  min-width: 140px;
-  border-radius: 8px;
-}
-
-.mode-select :deep(.ant-select-selector) {
-  border-radius: 8px !important;
-  border: 1px solid rgba(24, 144, 255, 0.2) !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(10px);
-}
-
-.mode-select :deep(.ant-select-selector:hover) {
-  border-color: rgba(24, 144, 255, 0.4) !important;
-}
-
-.mode-select :deep(.ant-select-focused .ant-select-selector) {
-  border-color: #1890ff !important;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
 }
 
 .action-btn {
@@ -637,20 +594,6 @@ onMounted(() => {
   
   .section-title {
     font-size: 24px;
-  }
-  
-  .input-actions {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .right-actions {
-    justify-content: center;
-  }
-  
-  .mode-select {
-    min-width: 120px;
   }
 }
 </style>

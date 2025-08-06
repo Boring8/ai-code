@@ -6,7 +6,7 @@
         <RouterLink to="/" class="logo-link">
           <div class="header-left">
             <div class="logo-container">
-              <span class="logo-text">AI Code</span>
+              <img src="/src/assets/easen-logo.png" alt="AI Code" class="logo-image" />
             </div>
           </div>
         </RouterLink>
@@ -158,14 +158,10 @@ const doLogout = async () => {
   gap: 8px;
 }
 
-.logo-text {
-  font-size: 24px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
+.logo-image {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
 }
 
 .nav-menu {
@@ -245,8 +241,8 @@ const doLogout = async () => {
     padding: 0 16px;
   }
   
-  .logo-text {
-    font-size: 20px;
+  .logo-image {
+    height: 28px;
   }
   
   .nav-menu {
