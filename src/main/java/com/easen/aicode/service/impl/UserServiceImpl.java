@@ -6,7 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.model.enums.UserRoleEnum;
-import com.easen.aicode.model.dto.UserQueryRequest;
+import com.easen.aicode.model.dto.user.UserQueryRequest;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.mapper.UserMapper;
 import com.easen.aicode.model.vo.LoginUserVO;

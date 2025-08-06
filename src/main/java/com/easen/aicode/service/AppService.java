@@ -1,6 +1,6 @@
 package com.easen.aicode.service;
 
-import com.easen.aicode.model.dto.AppQueryRequest;
+import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.AppVO;

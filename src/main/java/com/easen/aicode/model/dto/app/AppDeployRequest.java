@@ -1,4 +1,4 @@
-package com.easen.aicode.model.dto;
+package com.easen.aicode.model.dto.app;
 
 import lombok.Data;
 
