@@ -18,5 +18,12 @@ export const getDeployUrl = (deployKey: string) => {
 
 // 获取静态资源预览URL
 export const getStaticPreviewUrl = (codeGenType: string, appId: string) => {
-  return `${STATIC_BASE_URL}/${codeGenType}_${appId}/`
+  const baseUrl = `${STATIC_BASE_URL}/${codeGenType}_${appId}/`
+  
+  // Vue 工程模式需要添加 dist/index.html 后缀
+  if (codeGenType === 'vue_project') {
+    return `${baseUrl}dist/index.html`
+  }
+  
+  return baseUrl
 }

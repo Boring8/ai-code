@@ -6,6 +6,7 @@ import { useLoginUserStore } from '@/stores/loginUser'
 import { addApp, listMyAppByPage, listFeaturedAppByPage } from '@/api/appController'
 import { getDeployUrl } from '@/config/env'
 import AppCard from '@/components/AppCard.vue'
+import { CODE_GEN_TYPE_OPTIONS } from '@/utils/codeGenTypes'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
@@ -18,10 +19,7 @@ const creating = ref(false)
 const codeGenType = ref('html')
 
 // 代码生成类型选项
-const codeGenTypeOptions = [
-  { label: '原生 HTML 模式', value: 'html' },
-  { label: '原生多文件模式', value: 'multi_file' },
-]
+const codeGenTypeOptions = CODE_GEN_TYPE_OPTIONS
 
 // 我的应用数据
 const myApps = ref<API.AppVO[]>([])
