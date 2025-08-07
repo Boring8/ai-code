@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 public class ReasoningStreamingChatModelConfig {
 
     private String baseUrl;
-7
+
     private String apiKey;
 
     /**
