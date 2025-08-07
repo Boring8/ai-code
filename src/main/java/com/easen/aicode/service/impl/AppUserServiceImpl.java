@@ -2,6 +2,7 @@ package com.easen.aicode.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.model.entity.App;
@@ -220,12 +221,12 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         if (appId == null || userId == null) {
             return false;
         }
-
         // 查询应用信息
         App app = appService.getById(appId);
         if (app == null) {
             return false;
         }
+
 
         // 如果是创建者，直接有权限
         if (app.getUserId().equals(userId)) {
@@ -238,5 +239,33 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         }
 
         return false;
+    }
+
+    @Override
+    public Page<App> getUserTeamAppsByPage(Long userId, String appName, Integer pageNum, Integer pageSize) {
+        if (userId == null) {
+            return new Page<>();
+        }
+
+        // 构建查询条件
+        QueryWrapper queryWrapper = QueryWrapper.create()
+                .select("DISTINCT a.*")
+                .from("app").as("a")
+                .leftJoin("app_user").as("au").on("a.id = au.appId")
+                .where("(a.userId = ? OR au.userId = ?)", userId, userId)
+                .and("a.isTeam = 1"); // 只查询团队应用
+
+        // 如果提供了应用名称，添加模糊查询条件
+        if (appName != null && !appName.trim().isEmpty()) {
+            queryWrapper.and("a.appName LIKE ?", "%" + appName.trim() + "%");
+        }
+
+        // 按创建时间倒序排列
+        queryWrapper.orderBy("a.createTime desc");
+
+        // 执行分页查询
+        Page<App> page = this.pageAs(new Page<>(pageNum, pageSize), queryWrapper, App.class);
+
+        return page;
     }
 }

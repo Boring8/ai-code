@@ -13,6 +13,7 @@ import com.easen.aicode.model.entity.ChatHistory;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
 import com.easen.aicode.service.AppService;
+import com.easen.aicode.service.AppUserService;
 import com.easen.aicode.service.ChatHistoryService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
@@ -38,6 +39,9 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
     @Resource
     @Lazy
     private AppService appService;
+
+    @Resource
+    private AppUserService appUserService;
     @Override
     public Page<ChatHistory> listAppChatHistoryByPage(Long appId, int pageSize,
                                                       LocalDateTime lastCreateTime,
@@ -49,8 +53,8 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         App app = appService.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
         boolean isAdmin = UserConstant.ADMIN_ROLE.equals(loginUser.getUserRole());
-        boolean isCreator = app.getUserId().equals(loginUser.getId());
-        ThrowUtils.throwIf(!isAdmin && !isCreator, ErrorCode.NO_AUTH_ERROR, "无权查看该应用的对话历史");
+        boolean isHasAppPermission = appUserService.hasAppPermission(app.getUserId(),loginUser.getId());
+        ThrowUtils.throwIf(!isAdmin && !isHasAppPermission, ErrorCode.NO_AUTH_ERROR, "无权查看该应用的对话历史");
         // 构建查询条件
         ChatHistoryQueryRequest queryRequest = new ChatHistoryQueryRequest();
         queryRequest.setAppId(appId);

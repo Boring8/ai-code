@@ -41,5 +41,8 @@ public class AppQueryRequest extends PageRequest implements Serializable {
     private Integer priority;
 
     private String initPrompt;
+
+
+    private Integer isTeam;
     private static final long serialVersionUID = 1L;
 } 

@@ -1,5 +1,6 @@
 package com.easen.aicode.service;
 
+import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.AppUser;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.AppTeamMemberVO;
@@ -77,4 +78,15 @@ public interface AppUserService extends IService<AppUser> {
      * @return 是否有权限
      */
     boolean hasAppPermission(Long appId, Long userId);
+
+    /**
+     * 分页查询用户参与的团队应用列表
+     *
+     * @param userId   用户ID
+     * @param appName  应用名称（可选，支持模糊查询）
+     * @param pageNum  页码
+     * @param pageSize 每页大小
+     * @return 分页结果
+     */
+    Page<App> getUserTeamAppsByPage(Long userId, String appName, Integer pageNum, Integer pageSize);
 }

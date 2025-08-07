@@ -202,7 +202,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         Integer priority = appQueryRequest.getPriority();
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
-
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("id", id)
                 .eq("codeGenType", codeGenType)

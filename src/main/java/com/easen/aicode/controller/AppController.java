@@ -13,6 +13,7 @@ import com.easen.aicode.exception.ThrowUtils;
 import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppDeployRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
+import com.easen.aicode.model.dto.app.AppTeamQueryRequest;
 import com.easen.aicode.model.dto.app.AppUpdateRequest;
 import com.easen.aicode.model.dto.app.AppTeamInviteRequest;
 import com.easen.aicode.model.dto.app.AppTeamRemoveRequest;
@@ -498,5 +499,39 @@ public class AppController {
 
         boolean isMember = appUserService.isUserInApp(appId, userId);
         return ResultUtils.success(isMember);
+    }
+
+    /**
+     * 分页查询自己有参与的团队应用列表（支持根据名称查询，每页最多 20 个）
+     *
+     * @param appTeamQueryRequest 查询请求
+     * @param request             HTTP请求
+     * @return 团队应用列表
+     */
+    @PostMapping("/list/my/team")
+    public BaseResponse<Page<AppVO>> listMyTeamAppByPage(@RequestBody AppTeamQueryRequest appTeamQueryRequest, 
+                                                        HttpServletRequest request) {
+        ThrowUtils.throwIf(appTeamQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        
+        User loginUser = userService.getLoginUser(request);
+        appTeamQueryRequest.setUserId(loginUser.getId());
+        
+        // 限制每页最多20个
+        Integer pageSize = Math.min(appTeamQueryRequest.getPageSize(), 20);
+        appTeamQueryRequest.setPageSize(pageSize);
+        
+        long pageNum = appTeamQueryRequest.getPageNum();
+        String appName = appTeamQueryRequest.getAppName();
+        
+        // 调用服务查询用户参与的团队应用
+        Page<App> appPage = appUserService.getUserTeamAppsByPage(
+                loginUser.getId(), appName, (int) pageNum, pageSize);
+        
+        // 转换为AppVO
+        Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
+        List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
+        appVOPage.setRecords(appVOList);
+        
+        return ResultUtils.success(appVOPage);
     }
 }
