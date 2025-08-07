@@ -3,6 +3,7 @@ package com.easen.aicode.service;
 import com.easen.aicode.model.dto.ChatHistoryQueryRequest;
 import com.easen.aicode.model.entity.ChatHistory;
 import com.easen.aicode.model.entity.User;
+import com.easen.aicode.model.vo.ChatHistoryVO;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
@@ -50,6 +51,19 @@ public interface ChatHistoryService extends IService<ChatHistory> {
                                                User loginUser);
 
     /**
+     * 分页查询某 APP 的对话记录（返回VO）
+     *
+     * @param appId
+     * @param pageSize
+     * @param lastCreateTime
+     * @param loginUser
+     * @return
+     */
+    Page<ChatHistoryVO> listAppChatHistoryVOByPage(Long appId, int pageSize,
+                                                   LocalDateTime lastCreateTime,
+                                                   User loginUser);
+
+    /**
      * 加载对话历史到内存
      *
      * @param appId
@@ -66,4 +80,12 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @return
      */
     QueryWrapper getQueryWrapper(ChatHistoryQueryRequest chatHistoryQueryRequest);
+
+    /**
+     * 管理员分页查询所有对话历史（返回VO）
+     *
+     * @param chatHistoryQueryRequest 查询请求
+     * @return 对话历史分页
+     */
+    Page<ChatHistoryVO> listAllChatHistoryVOByPageForAdmin(ChatHistoryQueryRequest chatHistoryQueryRequest);
 }

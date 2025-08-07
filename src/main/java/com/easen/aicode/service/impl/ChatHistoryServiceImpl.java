@@ -12,9 +12,11 @@ import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.ChatHistory;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
+import com.easen.aicode.model.vo.ChatHistoryVO;
 import com.easen.aicode.service.AppService;
 import com.easen.aicode.service.AppUserService;
 import com.easen.aicode.service.ChatHistoryService;
+import com.easen.aicode.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import dev.langchain4j.data.message.AiMessage;
@@ -42,6 +44,9 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
 
     @Resource
     private AppUserService appUserService;
+
+    @Resource
+    private UserService userService;
     @Override
     public Page<ChatHistory> listAppChatHistoryByPage(Long appId, int pageSize,
                                                       LocalDateTime lastCreateTime,
@@ -54,7 +59,7 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
         boolean isAdmin = UserConstant.ADMIN_ROLE.equals(loginUser.getUserRole());
         boolean isHasAppPermission = appUserService.hasAppPermission(app.getUserId(),loginUser.getId());
-        ThrowUtils.throwIf(!isAdmin && !isHasAppPermission, ErrorCode.NO_AUTH_ERROR, "无权查看该应用的对话历史");
+        ThrowUtils.throwIf(!isAdmin && isHasAppPermission, ErrorCode.NO_AUTH_ERROR, "无权查看该应用的对话历史");
         // 构建查询条件
         ChatHistoryQueryRequest queryRequest = new ChatHistoryQueryRequest();
         queryRequest.setAppId(appId);
@@ -62,6 +67,51 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         QueryWrapper queryWrapper = this.getQueryWrapper(queryRequest);
         // 查询数据
         return this.page(Page.of(1, pageSize), queryWrapper);
+    }
+
+    @Override
+    public Page<ChatHistoryVO> listAppChatHistoryVOByPage(Long appId, int pageSize,
+                                                          LocalDateTime lastCreateTime,
+                                                          User loginUser) {
+        // 先获取原始的ChatHistory分页数据
+        Page<ChatHistory> chatHistoryPage = listAppChatHistoryByPage(appId, pageSize, lastCreateTime, loginUser);
+        
+        // 转换为ChatHistoryVO
+        Page<ChatHistoryVO> chatHistoryVOPage = new Page<>();
+        chatHistoryVOPage.setPageNumber(chatHistoryPage.getPageNumber());
+        chatHistoryVOPage.setPageSize(chatHistoryPage.getPageSize());
+        chatHistoryVOPage.setTotalRow(chatHistoryPage.getTotalRow());
+        chatHistoryVOPage.setTotalPage(chatHistoryPage.getTotalPage());
+        
+        // 转换记录
+        List<ChatHistoryVO> voList = chatHistoryPage.getRecords().stream()
+                .map(this::convertToVO)
+                .toList();
+        chatHistoryVOPage.setRecords(voList);
+        
+        return chatHistoryVOPage;
+    }
+
+    /**
+     * 将ChatHistory转换为ChatHistoryVO
+     */
+    private ChatHistoryVO convertToVO(ChatHistory chatHistory) {
+        ChatHistoryVO vo = ChatHistoryVO.builder()
+                .message(chatHistory.getMessage())
+                .messageType(chatHistory.getMessageType())
+                .appId(chatHistory.getAppId())
+                .createTime(chatHistory.getCreateTime())
+                .build();
+        
+        // 获取用户昵称
+        if (chatHistory.getUserId() != null) {
+            User user = userService.getById(chatHistory.getUserId());
+            if (user != null) {
+                vo.setUserName(user.getUserName());
+            }
+        }
+        
+        return vo;
     }
 
     @Override
@@ -127,6 +177,33 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         }
         return queryWrapper;
     }
+
+    @Override
+    public Page<ChatHistoryVO> listAllChatHistoryVOByPageForAdmin(ChatHistoryQueryRequest chatHistoryQueryRequest) {
+        ThrowUtils.throwIf(chatHistoryQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        long pageNum = chatHistoryQueryRequest.getPageNum();
+        long pageSize = chatHistoryQueryRequest.getPageSize();
+        
+        // 查询数据
+        QueryWrapper queryWrapper = this.getQueryWrapper(chatHistoryQueryRequest);
+        Page<ChatHistory> chatHistoryPage = this.page(Page.of(pageNum, pageSize), queryWrapper);
+        
+        // 转换为ChatHistoryVO
+        Page<ChatHistoryVO> chatHistoryVOPage = new Page<>();
+        chatHistoryVOPage.setPageNumber(chatHistoryPage.getPageNumber());
+        chatHistoryVOPage.setPageSize(chatHistoryPage.getPageSize());
+        chatHistoryVOPage.setTotalRow(chatHistoryPage.getTotalRow());
+        chatHistoryVOPage.setTotalPage(chatHistoryPage.getTotalPage());
+        
+        // 转换记录
+        List<ChatHistoryVO> voList = chatHistoryPage.getRecords().stream()
+                .map(this::convertToVO)
+                .toList();
+        chatHistoryVOPage.setRecords(voList);
+        
+        return chatHistoryVOPage;
+    }
+
     @Override
     public int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory chatMemory, int maxCount) {
         try {
