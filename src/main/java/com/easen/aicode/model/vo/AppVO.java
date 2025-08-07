@@ -57,6 +57,10 @@ public class AppVO implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
+    /**
+     * 是否为团队应用(0否，1是)
+     */
+    private Integer isTeam;
 
     private String initPrompt;
     /**

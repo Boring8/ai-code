@@ -107,5 +107,10 @@ public class App implements Serializable {
      */
     @Column(value = "isDelete", isLogicDelete = true)
     private Integer isDelete;
-
+    
+    /**
+     * 是否为团队应用(0否，1是)
+     */
+    @Column("isTeam")
+    private Integer isTeam;
 }

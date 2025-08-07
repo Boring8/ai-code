@@ -32,5 +32,10 @@ public class AppUpdateRequest implements Serializable {
      */
     private Integer priority;
 
+    /**
+     * 是否为团队应用(0否，1是)
+     */
+    private Integer isTeam;
+
     private static final long serialVersionUID = 1L;
 } 

@@ -13,6 +13,7 @@
         <result column="deployedTime" property="deployedTime"/>
         <result column="priority" property="priority"/>
         <result column="userId" property="userId"/>
+        <result column="isTeam" property="isTeam"/>
         <result column="editTime" property="editTime"/>
         <result column="createTime" property="createTime"/>
         <result column="updateTime" property="updateTime"/>
@@ -21,7 +22,7 @@
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, appName, cover, initPrompt, codeGenType, deployKey, deployedTime, priority, userId, editTime, createTime, updateTime, isDelete
+        id, appName, cover, initPrompt, codeGenType, deployKey, deployedTime, priority, userId, isTeam, editTime, createTime, updateTime, isDelete
     </sql>
 
 </mapper>

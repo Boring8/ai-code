@@ -20,6 +20,7 @@ import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
 import com.easen.aicode.model.enums.CodeGenTypeEnum;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.AppService;
+import com.easen.aicode.service.AppUserService;
 import com.easen.aicode.service.ChatHistoryService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
@@ -52,6 +53,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private StreamHandlerExecutor streamHandlerExecutor;
+
+    @Resource
+    private AppUserService appUserService;
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
         // 1. 参数校验
@@ -60,8 +64,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 2. 查询应用信息
         App app = this.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        // 3. 验证用户是否有权限访问该应用，仅本人可以生成代码
-        if (!app.getUserId().equals(loginUser.getId())) {
+        // 3. 验证用户是否有权限访问该应用
+        // 个人应用：只有创建者可以访问
+        // 团队应用：创建者和团队成员都可以访问
+        if (!appUserService.hasAppPermission(appId, loginUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限访问该应用");
         }
         // 4. 获取应用的代码生成类型
@@ -89,8 +95,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 2. 查询应用信息
         App app = this.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        // 3. 权限校验，仅本人可以部署自己的应用
-        if (!app.getUserId().equals(loginUser.getId())) {
+        // 3. 权限校验
+        // 个人应用：只有创建者可以部署
+        // 团队应用：创建者和团队成员都可以部署
+        if (!appUserService.hasAppPermission(appId, loginUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限部署该应用");
         }
         // 4. 检查是否已有 deployKey
@@ -215,6 +223,23 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Override
     public boolean validateUserPermission(Long appId, Long userId) {
+        if (appId == null || userId == null) {
+            return false;
+        }
+        App app = this.getById(appId);
+        if (app == null) {
+            return false;
+        }
+        
+        // 如果是创建者，直接有权限
+        if (app.getUserId().equals(userId)) {
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isAppCreator(Long appId, Long userId) {
         if (appId == null || userId == null) {
             return false;
         }

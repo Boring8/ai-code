@@ -53,6 +53,15 @@ public interface AppService extends IService<App> {
     boolean validateUserPermission(Long appId, Long userId);
 
     /**
+     * 验证用户是否为应用创建者
+     *
+     * @param appId 应用id
+     * @param userId 用户id
+     * @return 是否为创建者
+     */
+    boolean isAppCreator(Long appId, Long userId);
+
+    /**
      * 应用聊天生成代码（流式 SSE）
      *
      * @param appId   应用 ID
