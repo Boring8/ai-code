@@ -11,7 +11,6 @@ public enum AppMessageTypeEnum {
     INFO("发送通知", "INFO"),
     ERROR("发送错误", "ERROR"),
     USER_ENTER_EDIT("用户进入对话状态", "USER_ENTER_EDIT"),
-    USER_EDIT_ACTION("用户执行对话操作", "USER_EDIT_ACTION"),
     USER_EXIT_EDIT("用户退出对话状态", "USER_EXIT_EDIT"),
     AI_EDIT_ACTION("ai执行对话操作", "AI_EDIT_ACTION");
 

@@ -25,5 +25,4 @@ public class AppRequestMessage {
     private String editAction;
 
 
-    private Flux<ServerSentEvent<String>> aiMassage;
 }

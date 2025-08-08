@@ -147,7 +147,7 @@ public class AppEditHandler extends TextWebSocketHandler {
             // 构造响应，发送退出编辑的消息通知
             AppResponseMessage pictureEditResponseMessage = new AppResponseMessage();
             pictureEditResponseMessage.setType(AppMessageTypeEnum.USER_EXIT_EDIT.getValue());
-            String message = String.format("用户 %s 退出编辑图片", user.getUserName());
+            String message = String.format("AI回答 %s 完毕", user.getUserName());
             pictureEditResponseMessage.setMessage(message);
             pictureEditResponseMessage.setUser(userService.getUserVO(user));
             broadcastToApp(appId, pictureEditResponseMessage);
@@ -170,8 +170,8 @@ public class AppEditHandler extends TextWebSocketHandler {
             appDoingUsers.put(appId, user.getId());
             // 构造响应，发送加入编辑的消息通知
             AppResponseMessage appResponseMessage = new AppResponseMessage();
-            appResponseMessage.setType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
-            String message = String.format("用户 %s 开始修改应用", user.getUserName());
+            appResponseMessage.setType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
+            String message = String.format("AI开始回答 %s ", user.getUserName());
             appResponseMessage.setMessage(message);
             appResponseMessage.setUser(userService.getUserVO(user));
             // 广播给所有用户
@@ -188,35 +188,16 @@ public class AppEditHandler extends TextWebSocketHandler {
      * @param appId
      */
     public void aiHandleEditActionMessage(AppRequestMessage appRequestMessage, WebSocketSession session, User user, Long appId) throws IOException {
-        // 构造响应，发送具体操作的通知
+
         AppResponseMessage appResponseMessage = new AppResponseMessage();
-        appResponseMessage.setType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
-        String message = String.format("%s 执行 AI 对话", user.getUserName());
+        appResponseMessage.setType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
+        String message = String.format("AI 正在回答 %s", user.getUserName());
         appResponseMessage.setMessage(message);
+        appResponseMessage.setEditAction(appRequestMessage.getEditAction());
         appResponseMessage.setUser(userService.getUserVO(user));
         // 广播给除了当前客户端之外的其他用户，否则会造成重复编辑
-        broadcastServerSentEvents(appId, appRequestMessage.getAiMassage(), session);
-    }
+        broadcastToApp(appId, appResponseMessage, session);
 
-
-    private void broadcastServerSentEvents(Long appId, Flux<ServerSentEvent<String>> sseFlux, WebSocketSession excludeSession) {
-        // 订阅SSE流
-        sseFlux.subscribe(
-                sse -> {
-                    try {
-                        // 处理每个SSE事件
-                        String data = sse.data();
-                        TextMessage textMessage = new TextMessage(data);
-                        broadcastToSessions(appId, textMessage, excludeSession);
-
-                    } catch (IOException e) {
-                        // 处理发送异常
-                        log.error("Error broadcasting SSE to app {}: {}", appId, e.getMessage(), e);
-                    }
-                },
-                error -> log.error("Error in SSE flux for app {}: {}", appId, error.getMessage(), error),
-                () -> log.info("SSE flux completed for app {}", appId)
-        );
     }
 
     // 提取通用的会话广播逻辑
@@ -234,31 +215,7 @@ public class AppEditHandler extends TextWebSocketHandler {
             }
         }
     }
-    /**
-     * AI生成操作
-     *
-     * @param appRequestMessage
-     * @param session
-     * @param user
-     * @param appId
-     */
-    public void userHandleEditActionMessage(AppRequestMessage appRequestMessage, WebSocketSession session, User user, Long appId) throws IOException {
-        // 正在编辑的用户
-        Long editingUserId = appDoingUsers.get(appId);
-        String editAction = appRequestMessage.getEditAction();
-        // 确认是当前的编辑者
-        if (editingUserId != null && editingUserId.equals(user.getId())) {
-            // 构造响应，发送具体操作的通知
-            AppResponseMessage appResponseMessage = new AppResponseMessage();
-            appResponseMessage.setType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
-            String message = String.format("%s 正在对话", user.getUserName());
-            appResponseMessage.setMessage(message);
-            appResponseMessage.setEditAction(editAction);
-            appResponseMessage.setUser(userService.getUserVO(user));
-            // 广播给除了当前客户端之外的其他用户，否则会造成重复编辑
-            broadcastToApp(appId, appResponseMessage, session);
-        }
-    }
+
 
     // 保留原有的广播方法，用于处理普通消息
     private void broadcastToApp(Long appId, AppResponseMessage appResponseMessage, WebSocketSession excludeSession) throws IOException {

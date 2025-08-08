@@ -13,7 +13,16 @@
             :src="user.userAvatar" 
             :title="user.userName"
             size="small"
+            :class="{ 'editing-user': currentEditingUser?.id === user.id }"
           />
+          <span v-if="currentEditingUser" class="editing-indicator">
+            {{ currentEditingUser.userName }} 正在编辑
+          </span>
+        </div>
+        <!-- WebSocket连接状态 -->
+        <div class="ws-status">
+          <span class="status-dot" :class="{ 'connected': wsConnected, 'disconnected': !wsConnected }"></span>
+          <span class="status-text">{{ wsConnected ? '已连接' : '连接中...' }}</span>
         </div>
       </div>
       <div class="header-right">
@@ -103,7 +112,7 @@
                 :disabled="isGenerating || !hasChatPermission"
               />
             </a-tooltip>
-            <a-tooltip v-else-if="!canEdit" title="其他用户正在对话中，请稍候..." placement="top">
+            <a-tooltip v-else-if="!canEdit" :title="`${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
               <a-textarea
                 v-model:value="userInput"
                 placeholder="请描述你想生成的网站，越详细效果越好哦"
@@ -138,8 +147,18 @@
           <!-- 显示当前编辑状态 -->
           <div v-if="currentEditingUser && currentEditingUser.id !== loginUserStore.loginUser.id" class="editing-status">
             <a-alert 
-              :message="`${currentEditingUser.userName} 正在对话中...`" 
+              :message="`${currentEditingUser.userName} 正在对话中，请稍候...`" 
+              :description="isStreamingFromOther ? '正在实时同步AI生成内容...' : '等待AI响应中...'"
               type="info" 
+              show-icon 
+              banner
+            />
+          </div>
+          <!-- 显示流式内容状态 -->
+          <div v-if="isStreamingFromOther && streamingUser" class="streaming-status">
+            <a-alert 
+              :message="`正在同步 ${streamingUser.userName} 的AI生成内容`" 
+              type="success" 
               show-icon 
               banner
             />
@@ -241,6 +260,12 @@ let websocket: WebSocket | null = null
 const onlineUsers = ref<API.UserVO[]>([])
 const currentEditingUser = ref<API.UserVO | null>(null)
 const canEdit = computed(() => !currentEditingUser.value || currentEditingUser.value.id === loginUserStore.loginUser.id)
+const wsConnected = ref(false)
+
+// 流式内容同步相关
+const streamingContent = ref<string>('')
+const streamingUser = ref<API.UserVO | null>(null)
+const isStreamingFromOther = ref(false)
 
 // 对话相关
 interface Message {
@@ -290,21 +315,17 @@ const appDetailVisible = ref(false)
 // WebSocket连接
 const connectWebSocket = () => {
   if (!appId.value) return
-console.log(appId.value);
 
-      try {
-      // 构建WebSocket URL
-      const wsUrl = API_BASE_URL.replace('http', 'ws') + `/ws/app?appId=${appId.value}`
-      console.log('正在连接WebSocket:', wsUrl)
-      websocket = new WebSocket(wsUrl)
+  try {
+    // 构建WebSocket URL
+    const wsUrl = API_BASE_URL.replace('http', 'ws') + `/ws/app?appId=${appId.value}`
+    console.log('正在连接WebSocket:', wsUrl)
+    websocket = new WebSocket(wsUrl)
 
     websocket.onopen = () => {
       console.log('WebSocket连接已建立')
-      // 发送进入编辑状态的消息
-      sendWebSocketMessage({
-        type: 'USER_ENTER_EDIT',
-        editAction: 'enter'
-      })
+      wsConnected.value = true
+      // WebSocket连接建立后，等待服务端发送INFO消息获取初始状态
     }
 
     websocket.onmessage = (event) => {
@@ -323,6 +344,13 @@ console.log(appId.value);
 
     websocket.onclose = () => {
       console.log('WebSocket连接已关闭')
+      wsConnected.value = false
+      // 尝试重新连接
+      setTimeout(() => {
+        if (appId.value) {
+          connectWebSocket()
+        }
+      }, 3000)
     }
   } catch (error) {
     console.error('建立WebSocket连接失败:', error)
@@ -336,62 +364,91 @@ const sendWebSocketMessage = (message: any) => {
   }
 }
 
+
+
 // 处理WebSocket消息
 const handleWebSocketMessage = (data: any) => {
+  console.log('收到WebSocket消息:', data)
+  
   switch (data.type) {
     case 'INFO':
-      // 处理用户加入/离开通知
-      if (data.message.includes('加入编辑')) {
-        // 用户加入，添加到在线用户列表
-        if (data.user && !onlineUsers.value.find(u => u.id === data.user.id)) {
-          onlineUsers.value.push(data.user)
-        }
-      } else if (data.message.includes('离开编辑')) {
-        // 用户离开，从在线用户列表移除
-        if (data.user) {
-          onlineUsers.value = onlineUsers.value.filter(u => u.id !== data.user.id)
+      // 处理服务端初始信息
+      console.log('收到服务端初始信息:', data)
+      if (data.onlineUsers) {
+        onlineUsers.value = data.onlineUsers
+      }
+      if (data.currentEditingUser) {
+        currentEditingUser.value = data.currentEditingUser
+        if (data.currentEditingUser.id !== loginUserStore.loginUser.id) {
+          message.info(`${data.currentEditingUser.userName} 正在编辑中`)
         }
       }
       break
+      
+
+      
     case 'USER_ENTER_EDIT':
       // 用户开始对话
       if (data.user) {
         currentEditingUser.value = data.user
         if (data.user.id !== loginUserStore.loginUser.id) {
-          message.info(`${data.user.userName} 开始对话`)
+          message.info(`${data.user.userName} 开始对话，请稍候...`)
         }
       }
       break
+      
     case 'USER_EXIT_EDIT':
       // 用户结束对话
       if (data.user && data.user.id === currentEditingUser.value?.id) {
         currentEditingUser.value = null
+        // 清除流式内容
+        streamingContent.value = ''
+        streamingUser.value = null
+        isStreamingFromOther.value = false
+        
         if (data.user.id !== loginUserStore.loginUser.id) {
-          message.info(`${data.user.userName} 结束对话`)
+          message.success(`${data.user.userName} 已完成对话，您可以开始编辑了`)
         }
       }
       break
+      
     case 'AI_EDIT_ACTION':
-      // AI对话内容
+      // AI对话内容流式推送
       if (data.user && data.user.id !== loginUserStore.loginUser.id) {
-        // 其他用户的AI对话，添加到消息列表
-        const aiMessageIndex = messages.value.length
-        messages.value.push({
-          type: 'ai',
-          content: '',
-          loading: true,
-          userName: data.user.userName,
-          userAvatar: data.user.userAvatar
-        })
+        // 其他用户的AI对话流式内容
+        if (!isStreamingFromOther.value) {
+          // 开始新的流式内容
+          isStreamingFromOther.value = true
+          streamingUser.value = data.user
+          streamingContent.value = data.editAction || ''
+          
+          // 添加AI消息占位符
+          messages.value.push({
+            type: 'ai',
+            content: '',
+            loading: true,
+            userName: data.user.userName,
+            userAvatar: data.user.userAvatar
+          })
+        } else {
+          // 继续追加流式内容
+          streamingContent.value += data.editAction || ''
+        }
         
-        // 模拟AI回复（实际应该从后端获取）
-        setTimeout(() => {
-          if (messages.value[aiMessageIndex]) {
-            messages.value[aiMessageIndex].content = '这是其他用户的AI对话内容...'
-            messages.value[aiMessageIndex].loading = false
-          }
-        }, 2000)
+        // 更新消息内容
+        const lastMessage = messages.value[messages.value.length - 1]
+        if (lastMessage && lastMessage.type === 'ai') {
+          lastMessage.content = streamingContent.value
+          lastMessage.loading = false
+          scrollToBottom()
+        }
       }
+      break
+      
+    case 'ERROR':
+      // 处理错误消息
+      console.error('WebSocket错误:', data.message)
+      message.error(data.message || 'WebSocket连接出现错误')
       break
   }
 }
@@ -399,18 +456,9 @@ const handleWebSocketMessage = (data: any) => {
 // 关闭WebSocket连接
 const closeWebSocket = () => {
   if (websocket) {
-    // 发送退出编辑状态的消息
-    sendWebSocketMessage({
-      type: 'USER_EXIT_EDIT',
-      editAction: 'exit'
-    })
-    
-    setTimeout(() => {
-      if (websocket) {
-        websocket.close()
-        websocket = null
-      }
-    }, 100)
+    // 直接关闭WebSocket连接，服务端会自动处理用户离开
+    websocket.close()
+    websocket = null
   }
 }
 
@@ -560,6 +608,17 @@ const loadMoreHistory = async () => {
 
 // 发送初始消息
 const sendInitialMessage = async (prompt: string) => {
+  // 发送WebSocket消息通知其他用户开始对话
+  sendWebSocketMessage({
+    type: 'USER_ENTER_EDIT',
+    user: {
+      id: loginUserStore.loginUser.id,
+      userName: loginUserStore.loginUser.userName,
+      userAvatar: loginUserStore.loginUser.userAvatar
+    },
+    editAction: prompt
+  })
+
   // 添加用户消息
   messages.value.push({
     type: 'user',
@@ -593,9 +652,14 @@ const sendMessage = async () => {
   const message = userInput.value.trim()
   userInput.value = ''
 
-  // 发送WebSocket消息通知其他用户
+  // 发送WebSocket消息通知其他用户开始对话
   sendWebSocketMessage({
-    type: 'USER_EDIT_ACTION',
+    type: 'USER_ENTER_EDIT',
+    user: {
+      id: loginUserStore.loginUser.id,
+      userName: loginUserStore.loginUser.userName,
+      userAvatar: loginUserStore.loginUser.userAvatar
+    },
     editAction: message
   })
 
@@ -647,6 +711,8 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
 
     let fullContent = ''
 
+
+
     // 处理接收到的消息
     eventSource.onmessage = function (event) {
       if (streamCompleted) return
@@ -662,6 +728,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
           messages.value[aiMessageIndex].content = fullContent
           messages.value[aiMessageIndex].loading = false
           scrollToBottom()
+          
+          // 实时推送流式内容到其他用户
+          sendWebSocketMessage({
+            type: 'AI_EDIT_ACTION',
+            user: {
+              id: loginUserStore.loginUser.id,
+              userName: loginUserStore.loginUser.userName,
+              userAvatar: loginUserStore.loginUser.userAvatar
+            },
+            editAction: content
+          })
         }
       } catch (error) {
         console.error('解析消息失败:', error)
@@ -676,6 +753,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
       streamCompleted = true
       isGenerating.value = false
       eventSource?.close()
+
+      // 发送退出编辑状态消息
+      sendWebSocketMessage({
+        type: 'USER_EXIT_EDIT',
+        user: {
+          id: loginUserStore.loginUser.id,
+          userName: loginUserStore.loginUser.userName,
+          userAvatar: loginUserStore.loginUser.userAvatar
+        },
+        editAction: ''
+      })
 
       // 延迟更新预览，确保后端已完成处理
       setTimeout(async () => {
@@ -692,6 +780,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
         streamCompleted = true
         isGenerating.value = false
         eventSource?.close()
+
+        // 发送退出编辑状态消息
+        sendWebSocketMessage({
+          type: 'USER_EXIT_EDIT',
+          user: {
+            id: loginUserStore.loginUser.id,
+            userName: loginUserStore.loginUser.userName,
+            userAvatar: loginUserStore.loginUser.userAvatar
+          },
+          editAction: ''
+        })
 
         setTimeout(async () => {
           await fetchAppInfo()
@@ -714,6 +813,17 @@ const handleError = (error: unknown, aiMessageIndex: number) => {
   messages.value[aiMessageIndex].loading = false
   message.error('生成失败，请重试')
   isGenerating.value = false
+  
+  // 发送退出编辑状态消息
+  sendWebSocketMessage({
+    type: 'USER_EXIT_EDIT',
+    user: {
+      id: loginUserStore.loginUser.id,
+      userName: loginUserStore.loginUser.userName,
+      userAvatar: loginUserStore.loginUser.userAvatar
+    },
+    editAction: ''
+  })
 }
 
 // 更新预览
@@ -816,7 +926,6 @@ onMounted(() => {
 onUnmounted(() => {
   // 关闭WebSocket连接
   closeWebSocket()
-  
   // EventSource 会在组件卸载时自动清理
 })
 </script>
@@ -860,6 +969,53 @@ onUnmounted(() => {
 .online-label {
   font-size: 12px;
   color: #666;
+}
+
+.editing-user {
+  border: 2px solid #1890ff;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.3);
+}
+
+.editing-indicator {
+  font-size: 12px;
+  color: #1890ff;
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+.ws-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.status-dot.connected {
+  background-color: #52c41a;
+  box-shadow: 0 0 4px rgba(82, 196, 26, 0.4);
+}
+
+.status-dot.disconnected {
+  background-color: #ff4d4f;
+  animation: pulse 1.5s infinite;
+}
+
+.status-text {
+  font-size: 12px;
+  color: #666;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
 }
 
 .header-right {
@@ -982,6 +1138,10 @@ onUnmounted(() => {
 }
 
 .editing-status {
+  margin-top: 8px;
+}
+
+.streaming-status {
   margin-top: 8px;
 }
 
