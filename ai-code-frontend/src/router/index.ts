@@ -8,6 +8,7 @@ import AppChatPage from '@/pages/app/AppChatPage.vue'
 import AppEditPage from '@/pages/app/AppEditPage.vue'
 import AppDetailPage from '@/pages/app/AppDetailPage.vue'
 
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -51,6 +52,7 @@ const router = createRouter({
       name: '应用详情',
       component: AppDetailPage,
     },
+
   ],
 })
 

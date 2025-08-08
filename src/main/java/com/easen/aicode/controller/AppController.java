@@ -341,7 +341,7 @@ public class AppController {
         app.setAppName(appUpdateRequest.getAppName());
         app.setIsTeam(appUpdateRequest.getIsTeam());
         app.setEditTime(LocalDateTime.now());
-
+        app.setPriority(appUpdateRequest.getPriority());
         boolean result = appService.updateById(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
 

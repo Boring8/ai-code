@@ -3,7 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
-import { addApp, listMyAppByPage, listFeaturedAppByPage } from '@/api/appController'
+import { addApp, listMyAppByPage, listMyTeamAppByPage, listFeaturedAppByPage } from '@/api/appController'
 import { getDeployUrl } from '@/config/env'
 import AppCard from '@/components/AppCard.vue'
 import { CODE_GEN_TYPE_OPTIONS } from '@/utils/codeGenTypes'
@@ -24,6 +24,14 @@ const codeGenTypeOptions = CODE_GEN_TYPE_OPTIONS
 // 我的应用数据
 const myApps = ref<API.AppVO[]>([])
 const myAppsPage = reactive({
+  current: 1,
+  pageSize: 6,
+  total: 0,
+})
+
+// 团队应用数据
+const teamApps = ref<API.AppVO[]>([])
+const teamAppsPage = reactive({
   current: 1,
   pageSize: 6,
   total: 0,
@@ -105,6 +113,29 @@ const loadMyApps = async () => {
   }
 }
 
+// 加载团队应用
+const loadTeamApps = async () => {
+  if (!loginUserStore.loginUser.id) {
+    return
+  }
+
+  try {
+    const res = await listMyTeamAppByPage({
+      pageNum: teamAppsPage.current,
+      pageSize: teamAppsPage.pageSize,
+      sortField: 'createTime',
+      sortOrder: 'desc',
+    })
+
+    if (res.data.code === 0 && res.data.data) {
+      teamApps.value = res.data.data.records || []
+      teamAppsPage.total = res.data.data.totalRow || 0
+    }
+  } catch (error) {
+    console.error('加载团队应用失败：', error)
+  }
+}
+
 // 加载精选应用
 const loadFeaturedApps = async () => {
   try {
@@ -150,6 +181,7 @@ const viewTeamManagement = (appId: string | number | undefined) => {
 // 页面加载时获取数据
 onMounted(() => {
   loadMyApps()
+  loadTeamApps()
   loadFeaturedApps()
 })
 </script>
@@ -238,10 +270,12 @@ onMounted(() => {
 
       <!-- 我的作品 -->
       <div v-if="loginUserStore.loginUser.id" class="section">
-        <h2 class="section-title">
-          <span class="section-icon">📁</span>
-          我的作品
-        </h2>
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="section-icon">📁</span>
+            我的作品
+          </h2>
+        </div>
         <div class="app-grid">
           <AppCard
             v-for="app in myApps"
@@ -268,12 +302,44 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- 我的团队 -->
+      <div v-if="loginUserStore.loginUser.id && teamApps.length > 0" class="section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="section-icon">👥</span>
+            我的团队
+          </h2>
+        </div>
+        <div class="app-grid">
+          <AppCard
+            v-for="app in teamApps"
+            :key="app.id"
+            :app="app"
+            @view-chat="viewChat"
+            @view-work="viewWork"
+            @team-management="viewTeamManagement"
+          />
+        </div>
+        <div v-if="teamAppsPage.total > 0" class="pagination-wrapper">
+          <a-pagination
+            v-model:current="teamAppsPage.current"
+            v-model:page-size="teamAppsPage.pageSize"
+            :total="teamAppsPage.total"
+            :show-size-changer="false"
+            :show-total="(total: number) => `共 ${total} 个团队应用`"
+            @change="loadTeamApps"
+          />
+        </div>
+      </div>
+
       <!-- 精选案例 -->
       <div class="section">
-        <h2 class="section-title">
+      <div class="section-header">
+              <h2 class="section-title">
           <span class="section-icon">⭐</span>
           精选案例
-        </h2>
+        </h2></div>
+
         <div class="featured-grid">
           <AppCard
             v-for="app in featuredApps"
@@ -539,14 +605,41 @@ onMounted(() => {
   margin-bottom: 60px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
 .section-title {
   font-size: 28px;
   font-weight: 600;
-  margin-bottom: 32px;
+  margin: 0;
   color: #1a1a1a;
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.team-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #1890ff;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.team-link:hover {
+  background: rgba(24, 144, 255, 0.1);
+  color: #1890ff;
+}
+
+.team-icon {
+  font-size: 16px;
 }
 
 .section-icon {
@@ -643,6 +736,17 @@ onMounted(() => {
   .section-title {
     font-size: 24px;
   }
+  
+  .section-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .team-link {
+    align-self: flex-end;
+  }
+  
   .input-actions {
     flex-direction: column;
     gap: 16px;

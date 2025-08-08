@@ -8,6 +8,17 @@
       <a-form-item label="创建者">
         <a-input v-model:value="searchParams.userId" placeholder="输入用户ID" />
       </a-form-item>
+      <a-form-item label="应用属性">
+        <a-select
+          v-model:value="searchParams.isTeam"
+          placeholder="选择应用属性"
+          style="width: 150px"
+          allow-clear
+        >
+          <a-select-option value="0">个人应用</a-select-option>
+          <a-select-option value="1">团队应用</a-select-option>
+        </a-select>
+      </a-form-item>
       <a-form-item label="生成类型">
         <a-select
           v-model:value="searchParams.codeGenType"
@@ -26,6 +37,7 @@
       </a-form-item>
       <a-form-item>
         <a-button type="primary" html-type="submit">搜索</a-button>
+        <a-button style="margin-left: 8px" @click="resetSearch">重置</a-button>
       </a-form-item>
     </a-form>
     <a-divider />
@@ -54,6 +66,10 @@
         <template v-else-if="column.dataIndex === 'priority'">
           <a-tag v-if="record.priority === 99" color="gold">精选</a-tag>
           <span v-else>{{ record.priority || 0 }}</span>
+        </template>
+        <template v-else-if="column.dataIndex === 'isTeam'">
+          <a-tag v-if="record.isTeam === 1" color="blue">团队应用</a-tag>
+          <a-tag v-else color="green">个人应用</a-tag>
         </template>
         <template v-else-if="column.dataIndex === 'deployedTime'">
           <span v-if="record.deployedTime">
@@ -132,6 +148,11 @@ const columns = [
     width: 80,
   },
   {
+    title: '应用属性',
+    dataIndex: 'isTeam',
+    width: 100,
+  },
+  {
     title: '部署时间',
     dataIndex: 'deployedTime',
     width: 160,
@@ -208,6 +229,16 @@ const doTableChange = (page: { current: number; pageSize: number }) => {
 // 搜索
 const doSearch = () => {
   // 重置页码
+  searchParams.pageNum = 1
+  fetchData()
+}
+
+// 重置搜索
+const resetSearch = () => {
+  searchParams.appName = undefined
+  searchParams.userId = undefined
+  searchParams.isTeam = undefined
+  searchParams.codeGenType = undefined
   searchParams.pageNum = 1
   fetchData()
 }
