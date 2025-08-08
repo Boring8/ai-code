@@ -82,15 +82,25 @@
 
         <!-- 用户消息输入框 -->
         <div class="input-container">
+          <!-- 权限提示 -->
+          <div v-if="!hasChatPermission" class="permission-alert">
+            <a-alert 
+              message="您没有对话权限" 
+              description="请联系应用创建者邀请您加入团队，或者您需要成为应用的所有者才能进行对话。"
+              type="warning" 
+              show-icon 
+              banner
+            />
+          </div>
           <div class="input-wrapper">
-            <a-tooltip v-if="!isOwner" title="无法在别人的作品下对话哦~" placement="top">
+            <a-tooltip v-if="!hasChatPermission" title="您没有对话权限，请联系应用创建者邀请您加入团队" placement="top">
               <a-textarea
                 v-model:value="userInput"
                 placeholder="请描述你想生成的网站，越详细效果越好哦"
                 :rows="4"
                 :maxlength="1000"
                 @keydown.enter.prevent="sendMessage"
-                :disabled="isGenerating || !isOwner"
+                :disabled="isGenerating || !hasChatPermission"
               />
             </a-tooltip>
             <a-tooltip v-else-if="!canEdit" title="其他用户正在对话中，请稍候..." placement="top">
@@ -109,15 +119,15 @@
               placeholder="请描述你想生成的网站，越详细效果越好哦"
               :rows="4"
               :maxlength="1000"
-              @keydown.enter.prevent="sendMessage"
-              :disabled="isGenerating"
+                @keydown.enter.prevent="sendMessage"
+                :disabled="isGenerating"
             />
             <div class="input-actions">
               <a-button
                 type="primary"
                 @click="sendMessage"
                 :loading="isGenerating"
-                :disabled="!isOwner || !canEdit"
+                :disabled="!hasChatPermission || !canEdit"
               >
                 <template #icon>
                   <SendOutlined />
@@ -197,6 +207,7 @@ import {
   getAppById,
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
+  checkUserInApp,
 } from '@/api/appController'
 import { listAppChatHistory } from '../../api/chatHistoryController'
 import { CodeGenTypeEnum } from '@/utils/codeGenTypes'
@@ -269,6 +280,9 @@ const isOwner = computed(() => {
 const isAdmin = computed(() => {
   return loginUserStore.loginUser.userRole === 'admin'
 })
+
+// 用户是否有对话权限
+const hasChatPermission = ref(false)
 
 // 应用详情相关
 const appDetailVisible = ref(false)
@@ -405,6 +419,28 @@ const showAppDetail = () => {
   appDetailVisible.value = true
 }
 
+// 检查用户对话权限
+const checkChatPermission = async () => {
+  if (!appId.value) return false
+
+  try {
+    const res = await checkUserInApp({
+      appId: getAppIdForApi(appId.value) as number,
+      userId: loginUserStore.loginUser.id
+    })
+    
+    if (res.data.code === 0) {
+      return res.data.data || false
+    } else {
+      console.error('检查用户权限失败：', res.data.message)
+      return false
+    }
+  } catch (error) {
+    console.error('检查用户权限失败：', error)
+    return false
+  }
+}
+
 // 获取应用信息
 const fetchAppInfo = async () => {
   const id = route.params.id as string
@@ -421,6 +457,9 @@ const fetchAppInfo = async () => {
     const res = await getAppById({ id: getAppIdForApi(id) as string })
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
+
+      // 检查用户对话权限
+      hasChatPermission.value = await checkChatPermission()
 
       // 加载对话历史
       await loadChatHistory()
@@ -547,7 +586,7 @@ const sendInitialMessage = async (prompt: string) => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!userInput.value.trim() || isGenerating.value || !canEdit.value) {
+  if (!userInput.value.trim() || isGenerating.value || !canEdit.value || !hasChatPermission.value) {
     return
   }
 
@@ -922,6 +961,10 @@ onUnmounted(() => {
 .input-container {
   padding: 16px;
   background: white;
+}
+
+.permission-alert {
+  margin-bottom: 12px;
 }
 
 .input-wrapper {
