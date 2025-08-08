@@ -391,9 +391,9 @@ const handleWebSocketMessage = (data: any) => {
       // 用户开始对话
       if (data.user) {
         currentEditingUser.value = data.user
-        if (data.user.id !== loginUserStore.loginUser.id) {
-          message.info(`${data.user.userName} 开始对话，请稍候...`)
-        }
+        // if (data.user.id !== loginUserStore.loginUser.id) {
+        //   message.info(`${data.user.userName} 开始对话，请稍候...`)
+        // }
       }
       break
       

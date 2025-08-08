@@ -173,6 +173,7 @@ public class AppEditHandler extends TextWebSocketHandler {
             appResponseMessage.setType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
             String message = String.format("AI开始回答 %s ", user.getUserName());
             appResponseMessage.setMessage(message);
+            appResponseMessage.setEditAction(appRequestMessage.getEditAction());
             appResponseMessage.setUser(userService.getUserVO(user));
             // 广播给所有用户
             broadcastToApp(appId, appResponseMessage);
@@ -190,7 +191,7 @@ public class AppEditHandler extends TextWebSocketHandler {
     public void aiHandleEditActionMessage(AppRequestMessage appRequestMessage, WebSocketSession session, User user, Long appId) throws IOException {
 
         AppResponseMessage appResponseMessage = new AppResponseMessage();
-        appResponseMessage.setType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
+        appResponseMessage.setType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
         String message = String.format("AI 正在回答 %s", user.getUserName());
         appResponseMessage.setMessage(message);
         appResponseMessage.setEditAction(appRequestMessage.getEditAction());

@@ -19,8 +19,6 @@ public class AppResponseMessage {
 
     private String editAction;
 
-    private Flux<ServerSentEvent<String>> aiMassage;
-
     /**
      * 用户信息
      */
