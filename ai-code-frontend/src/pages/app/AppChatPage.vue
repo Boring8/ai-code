@@ -4,6 +4,17 @@
     <div class="header-bar">
       <div class="header-left">
         <h1 class="app-name">{{ appInfo?.appName || '网站生成器' }}</h1>
+        <!-- 显示当前在线用户 -->
+        <div v-if="onlineUsers.length > 0" class="online-users">
+          <span class="online-label">在线用户：</span>
+          <a-avatar 
+            v-for="user in onlineUsers" 
+            :key="user.id" 
+            :src="user.userAvatar" 
+            :title="user.userName"
+            size="small"
+          />
+        </div>
       </div>
       <div class="header-right">
         <a-button type="default" @click="showAppDetail">
@@ -44,9 +55,14 @@
 
           <div v-for="(message, index) in messages" :key="message.id || index" class="message-item">
             <div v-if="message.type === 'user'" class="user-message">
-              <div class="message-content">{{ message.content }}</div>
+              <div class="message-content">
+                {{ message.content }}
+                <div v-if="message.userName" class="message-user">
+                  {{ message.userName }}
+                </div>
+              </div>
               <div class="message-avatar">
-                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+                <a-avatar :src="message.userAvatar || loginUserStore.loginUser.userAvatar" />
               </div>
             </div>
             <div v-else class="ai-message">
@@ -77,6 +93,16 @@
                 :disabled="isGenerating || !isOwner"
               />
             </a-tooltip>
+            <a-tooltip v-else-if="!canEdit" title="其他用户正在对话中，请稍候..." placement="top">
+              <a-textarea
+                v-model:value="userInput"
+                placeholder="请描述你想生成的网站，越详细效果越好哦"
+                :rows="4"
+                :maxlength="1000"
+                @keydown.enter.prevent="sendMessage"
+                :disabled="isGenerating || !canEdit"
+              />
+            </a-tooltip>
             <a-textarea
               v-else
               v-model:value="userInput"
@@ -91,13 +117,22 @@
                 type="primary"
                 @click="sendMessage"
                 :loading="isGenerating"
-                :disabled="!isOwner"
+                :disabled="!isOwner || !canEdit"
               >
                 <template #icon>
                   <SendOutlined />
                 </template>
               </a-button>
             </div>
+          </div>
+          <!-- 显示当前编辑状态 -->
+          <div v-if="currentEditingUser && currentEditingUser.id !== loginUserStore.loginUser.id" class="editing-status">
+            <a-alert 
+              :message="`${currentEditingUser.userName} 正在对话中...`" 
+              type="info" 
+              show-icon 
+              banner
+            />
           </div>
         </div>
       </div>
@@ -190,6 +225,12 @@ const loginUserStore = useLoginUserStore()
 const appInfo = ref<API.AppVO>()
 const appId = ref<string>()
 
+// WebSocket相关
+let websocket: WebSocket | null = null
+const onlineUsers = ref<API.UserVO[]>([])
+const currentEditingUser = ref<API.UserVO | null>(null)
+const canEdit = computed(() => !currentEditingUser.value || currentEditingUser.value.id === loginUserStore.loginUser.id)
+
 // 对话相关
 interface Message {
   id?: number
@@ -197,6 +238,8 @@ interface Message {
   content: string
   loading?: boolean
   createTime?: string
+  userName?: string
+  userAvatar?: string
 }
 
 const messages = ref<Message[]>([])
@@ -229,6 +272,133 @@ const isAdmin = computed(() => {
 
 // 应用详情相关
 const appDetailVisible = ref(false)
+
+// WebSocket连接
+const connectWebSocket = () => {
+  if (!appId.value) return
+console.log(appId.value);
+
+      try {
+      // 构建WebSocket URL
+      const wsUrl = API_BASE_URL.replace('http', 'ws') + `/ws/app?appId=${appId.value}`
+      console.log('正在连接WebSocket:', wsUrl)
+      websocket = new WebSocket(wsUrl)
+
+    websocket.onopen = () => {
+      console.log('WebSocket连接已建立')
+      // 发送进入编辑状态的消息
+      sendWebSocketMessage({
+        type: 'USER_ENTER_EDIT',
+        editAction: 'enter'
+      })
+    }
+
+    websocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        handleWebSocketMessage(data)
+      } catch (error) {
+        console.error('解析WebSocket消息失败:', error)
+      }
+    }
+
+    websocket.onerror = (error) => {
+      console.error('WebSocket连接错误:', error)
+      message.error('WebSocket连接失败，团队协作功能不可用')
+    }
+
+    websocket.onclose = () => {
+      console.log('WebSocket连接已关闭')
+    }
+  } catch (error) {
+    console.error('建立WebSocket连接失败:', error)
+  }
+}
+
+// 发送WebSocket消息
+const sendWebSocketMessage = (message: any) => {
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.send(JSON.stringify(message))
+  }
+}
+
+// 处理WebSocket消息
+const handleWebSocketMessage = (data: any) => {
+  switch (data.type) {
+    case 'INFO':
+      // 处理用户加入/离开通知
+      if (data.message.includes('加入编辑')) {
+        // 用户加入，添加到在线用户列表
+        if (data.user && !onlineUsers.value.find(u => u.id === data.user.id)) {
+          onlineUsers.value.push(data.user)
+        }
+      } else if (data.message.includes('离开编辑')) {
+        // 用户离开，从在线用户列表移除
+        if (data.user) {
+          onlineUsers.value = onlineUsers.value.filter(u => u.id !== data.user.id)
+        }
+      }
+      break
+    case 'USER_ENTER_EDIT':
+      // 用户开始对话
+      if (data.user) {
+        currentEditingUser.value = data.user
+        if (data.user.id !== loginUserStore.loginUser.id) {
+          message.info(`${data.user.userName} 开始对话`)
+        }
+      }
+      break
+    case 'USER_EXIT_EDIT':
+      // 用户结束对话
+      if (data.user && data.user.id === currentEditingUser.value?.id) {
+        currentEditingUser.value = null
+        if (data.user.id !== loginUserStore.loginUser.id) {
+          message.info(`${data.user.userName} 结束对话`)
+        }
+      }
+      break
+    case 'AI_EDIT_ACTION':
+      // AI对话内容
+      if (data.user && data.user.id !== loginUserStore.loginUser.id) {
+        // 其他用户的AI对话，添加到消息列表
+        const aiMessageIndex = messages.value.length
+        messages.value.push({
+          type: 'ai',
+          content: '',
+          loading: true,
+          userName: data.user.userName,
+          userAvatar: data.user.userAvatar
+        })
+        
+        // 模拟AI回复（实际应该从后端获取）
+        setTimeout(() => {
+          if (messages.value[aiMessageIndex]) {
+            messages.value[aiMessageIndex].content = '这是其他用户的AI对话内容...'
+            messages.value[aiMessageIndex].loading = false
+          }
+        }, 2000)
+      }
+      break
+  }
+}
+
+// 关闭WebSocket连接
+const closeWebSocket = () => {
+  if (websocket) {
+    // 发送退出编辑状态的消息
+    sendWebSocketMessage({
+      type: 'USER_EXIT_EDIT',
+      editAction: 'exit'
+    })
+    
+    setTimeout(() => {
+      if (websocket) {
+        websocket.close()
+        websocket = null
+      }
+    }, 100)
+  }
+}
 
 // 显示应用详情
 const showAppDetail = () => {
@@ -264,6 +434,9 @@ const fetchAppInfo = async () => {
       if (messages.value.length >= 2) {
         updatePreview()
       }
+
+      // 建立WebSocket连接
+      connectWebSocket()
     } else {
       message.error('获取应用信息失败')
       router.push('/')
@@ -352,6 +525,8 @@ const sendInitialMessage = async (prompt: string) => {
   messages.value.push({
     type: 'user',
     content: prompt,
+    userName: loginUserStore.loginUser.userName,
+    userAvatar: loginUserStore.loginUser.userAvatar
   })
 
   // 添加AI消息占位符
@@ -372,17 +547,25 @@ const sendInitialMessage = async (prompt: string) => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!userInput.value.trim() || isGenerating.value) {
+  if (!userInput.value.trim() || isGenerating.value || !canEdit.value) {
     return
   }
 
   const message = userInput.value.trim()
   userInput.value = ''
 
+  // 发送WebSocket消息通知其他用户
+  sendWebSocketMessage({
+    type: 'USER_EDIT_ACTION',
+    editAction: message
+  })
+
   // 添加用户消息
   messages.value.push({
     type: 'user',
     content: message,
+    userName: loginUserStore.loginUser.userName,
+    userAvatar: loginUserStore.loginUser.userAvatar
   })
 
   // 添加AI消息占位符
@@ -592,6 +775,9 @@ onMounted(() => {
 
 // 清理资源
 onUnmounted(() => {
+  // 关闭WebSocket连接
+  closeWebSocket()
+  
   // EventSource 会在组件卸载时自动清理
 })
 </script>
@@ -624,6 +810,17 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
+}
+
+.online-users {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.online-label {
+  font-size: 12px;
+  color: #666;
 }
 
 .header-right {
@@ -690,6 +887,7 @@ onUnmounted(() => {
   border-radius: 12px;
   line-height: 1.5;
   word-wrap: break-word;
+  position: relative;
 }
 
 .user-message .message-content {
@@ -701,6 +899,12 @@ onUnmounted(() => {
   background: #f5f5f5;
   color: #1a1a1a;
   padding: 8px 12px;
+}
+
+.message-user {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 4px;
 }
 
 .message-avatar {
@@ -732,6 +936,10 @@ onUnmounted(() => {
   position: absolute;
   bottom: 8px;
   right: 8px;
+}
+
+.editing-status {
+  margin-top: 8px;
 }
 
 /* 右侧预览区域 */
