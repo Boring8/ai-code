@@ -81,6 +81,30 @@
               </a-button>
               <a-button @click="resetForm">重置</a-button>
               <a-button type="link" @click="goToChat">进入对话</a-button>
+
+              <a-button 
+                v-if="appInfo?.isTeam" 
+                type="link" 
+                @click="goToTeamManagement"
+              >
+                团队管理
+              </a-button>
+              <a-popconfirm
+                title="确定要将此应用转换为团队应用吗？"
+                description="转换后可以邀请其他用户加入团队，但此操作不可撤销。"
+                @confirm="convertToTeamApp"
+                ok-text="确定"
+                cancel-text="取消"
+              >
+                <a-button 
+                  v-if="!appInfo?.isTeam && isOwner" 
+                  type="primary" 
+                  size="small"
+                  :loading="converting"
+                >
+                  变为团队应用
+                </a-button>
+              </a-popconfirm>
             </a-space>
           </a-form-item>
         </a-form>
@@ -91,9 +115,6 @@
         <a-descriptions :column="2" bordered>
           <a-descriptions-item label="应用ID">
             {{ appInfo?.id }}
-          </a-descriptions-item>
-          <a-descriptions-item label="创建者">
-            <UserInfo :user="appInfo?.user" size="small" />
           </a-descriptions-item>
           <a-descriptions-item label="创建时间">
             {{ formatTime(appInfo?.createTime) }}
@@ -120,12 +141,11 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { useLoginUserStore } from '@/stores/loginUser'
-import { getAppById, updateApp, updateMyApp } from '@/api/appController'
-import { formatCodeGenType } from '@/utils/codeGenTypes'
-import { formatTime } from '@/utils/time'
-import UserInfo from '@/components/UserInfo.vue'
-import { getStaticPreviewUrl } from '@/config/env'
+import { useLoginUserStore } from '../../stores/loginUser'
+import { getAppById, updateApp, updateMyApp } from '../../api/appController'
+import { formatCodeGenType } from '../../utils/codeGenTypes'
+import { formatTime } from '../../utils/time'
+import { getStaticPreviewUrl } from '../../config/env'
 import type { FormInstance } from 'ant-design-vue'
 
 const route = useRoute()
@@ -136,6 +156,7 @@ const loginUserStore = useLoginUserStore()
 const appInfo = ref<API.AppVO>()
 const loading = ref(false)
 const submitting = ref(false)
+const converting = ref(false)
 const formRef = ref<FormInstance>()
 
 // 表单数据
@@ -151,6 +172,11 @@ const formData = reactive({
 // 是否为管理员
 const isAdmin = computed(() => {
   return loginUserStore.loginUser.userRole === 'admin'
+})
+
+// 是否为创建者
+const isOwner = computed(() => {
+  return appInfo.value?.userId === loginUserStore.loginUser.id
 })
 
 // 表单验证规则
@@ -176,22 +202,23 @@ const fetchAppInfo = async () => {
   try {
     const res = await getAppById({ id: id as unknown as number })
     if (res.data.code === 0 && res.data.data) {
-      appInfo.value = res.data.data
+      const current = res.data.data
+      appInfo.value = current
 
       // 检查权限
-      if (!isAdmin.value && appInfo.value.userId !== loginUserStore.loginUser.id) {
+      if (!isAdmin.value && current.userId !== loginUserStore.loginUser.id) {
         message.error('您没有权限编辑此应用')
         router.push('/')
         return
       }
 
       // 填充表单数据
-      formData.appName = appInfo.value.appName || ''
-      formData.cover = appInfo.value.cover || ''
-      formData.priority = appInfo.value.priority || 0
-      formData.initPrompt = appInfo.value.initPrompt || ''
-      formData.codeGenType = appInfo.value.codeGenType || ''
-      formData.deployKey = appInfo.value.deployKey || ''
+      formData.appName = current.appName || ''
+      formData.cover = current.cover || ''
+      formData.priority = current.priority || 0
+      formData.initPrompt = current.initPrompt || ''
+      formData.codeGenType = current.codeGenType || ''
+      formData.deployKey = current.deployKey || ''
     } else {
       message.error('获取应用信息失败')
       router.push('/')
@@ -257,6 +284,37 @@ const resetForm = () => {
 const goToChat = () => {
   if (appInfo.value?.id) {
     router.push(`/app/chat/${appInfo.value.id}`)
+  }
+}
+
+// 进入团队管理页面
+const goToTeamManagement = () => {
+  if (appInfo.value?.id) {
+    router.push(`/app/detail/${appInfo.value.id}`)
+  }
+}
+
+// 转换为团队应用
+const convertToTeamApp = async () => {
+  if (!appInfo.value?.id) return
+
+  converting.value = true
+  try {
+    const res = await updateMyApp({
+      id: appInfo.value.id,
+      isTeam: 1,
+    })
+    if (res.data.code === 0) {
+      message.success('应用已成功转换为团队应用')
+      await fetchAppInfo()
+    } else {
+      message.error('转换失败：' + (res.data.message || '未知错误'))
+    }
+  } catch (error) {
+    console.error('转换失败：', error)
+    message.error('转换失败，请重试')
+  } finally {
+    converting.value = false
   }
 }
 

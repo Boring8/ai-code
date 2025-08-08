@@ -63,6 +63,15 @@
           >
             预览
           </a-button>
+          <a-button 
+            v-if="app.isTeam" 
+            type="text" 
+            size="small" 
+            @click="handleTeamManagement"
+            class="action-btn"
+          >
+            团队
+          </a-button>
         </div>
       </div>
       <!-- 添加时间显示 -->
@@ -76,8 +85,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatRelativeTime } from '@/utils/time'
-import { toAppIdString } from '@/utils/appIdUtils'
+import { formatRelativeTime } from '../utils/time'
+import { toAppIdString } from '../utils/appIdUtils'
 
 interface Props {
   app: API.AppVO
@@ -87,6 +96,7 @@ interface Props {
 interface Emits {
   (e: 'view-chat', appId: string | number | undefined): void
   (e: 'view-work', app: API.AppVO): void
+  (e: 'team-management', appId: string | number | undefined): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -115,6 +125,12 @@ const handleViewChat = () => {
 
 const handleViewWork = () => {
   emit('view-work', props.app)
+}
+
+const handleTeamManagement = () => {
+  // 确保AppId在传递时保持字符串格式，避免精度丢失
+  const appIdStr = toAppIdString(props.app.id)
+  emit('team-management', appIdStr)
 }
 </script>
 

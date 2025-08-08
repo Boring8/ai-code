@@ -140,6 +140,13 @@ const viewWork = (app: API.AppVO) => {
   }
 }
 
+// 团队管理
+const viewTeamManagement = (appId: string | number | undefined) => {
+  if (appId) {
+    router.push(`/app/detail/${appId}`)
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
   loadMyApps()
@@ -242,6 +249,7 @@ onMounted(() => {
             :app="app"
             @view-chat="viewChat"
             @view-work="viewWork"
+            @team-management="viewTeamManagement"
           />
           <div v-if="myApps.length === 0" class="empty-state">
             <div class="empty-icon">📄</div>
@@ -274,6 +282,7 @@ onMounted(() => {
             :featured="true"
             @view-chat="viewChat"
             @view-work="viewWork"
+            @team-management="viewTeamManagement"
           />
           <div v-if="featuredApps.length === 0" class="empty-state">
             <div class="empty-icon">📄</div>

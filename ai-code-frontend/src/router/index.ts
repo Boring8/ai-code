@@ -6,6 +6,7 @@ import UserManagePage from '@/pages/admin/UserManagePage.vue'
 import AppManagePage from '@/pages/admin/AppManagePage.vue'
 import AppChatPage from '@/pages/app/AppChatPage.vue'
 import AppEditPage from '@/pages/app/AppEditPage.vue'
+import AppDetailPage from '@/pages/app/AppDetailPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,6 +45,11 @@ const router = createRouter({
       path: '/app/edit/:id',
       name: '编辑应用',
       component: AppEditPage,
+    },
+    {
+      path: '/app/detail/:id',
+      name: '应用详情',
+      component: AppDetailPage,
     },
   ],
 })

@@ -116,7 +116,7 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         appUser.setCreateTime(LocalDateTime.now());
         appUser.setUpdateTime(LocalDateTime.now());
         // 检查用户是否为应用创建者
-        if (!app.getUserId().equals(userId)) {
+        if (app.getUserId().equals(userId)) {
             appUser.setIsCreate(1);
         }
         return this.save(appUser);
