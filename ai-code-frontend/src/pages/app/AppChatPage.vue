@@ -4,8 +4,8 @@
     <div class="header-bar">
       <div class="header-left">
         <h1 class="app-name">{{ appInfo?.appName || '网站生成器' }}</h1>
-        <!-- 显示当前在线用户 -->
-        <div v-if="onlineUsers.length > 0" class="online-users">
+        <!-- 显示当前在线用户（仅团队应用） -->
+        <div v-if="isTeamApp && onlineUsers.length > 0" class="online-users">
           <span class="online-label">在线用户：</span>
           <a-avatar 
             v-for="user in onlineUsers" 
@@ -19,8 +19,8 @@
             {{ currentEditingUser.userName }} 正在编辑
           </span>
         </div>
-        <!-- WebSocket连接状态 -->
-        <div class="ws-status">
+        <!-- WebSocket连接状态（仅团队应用） -->
+        <div v-if="isTeamApp" class="ws-status">
           <span class="status-dot" :class="{ 'connected': wsConnected, 'disconnected': !wsConnected }"></span>
           <span class="status-text">{{ wsConnected ? '已连接' : '连接中...' }}</span>
         </div>
@@ -93,29 +93,9 @@
         </div>
 
         <!-- 用户消息输入框 -->
-        <div class="input-container">
-          <!-- 权限提示 -->
-          <div v-if="!hasChatPermission" class="permission-alert">
-            <a-alert 
-              message="您没有对话权限" 
-              description="请联系应用创建者邀请您加入团队，或者您需要成为应用的所有者才能进行对话。"
-              type="warning" 
-              show-icon 
-              banner
-            />
-          </div>
+        <div v-if="hasChatPermission" class="input-container">
           <div class="input-wrapper">
-            <a-tooltip v-if="!hasChatPermission" title="您没有对话权限，请联系应用创建者邀请您加入团队" placement="top">
-              <a-textarea
-                v-model:value="userInput"
-                placeholder="请描述你想生成的网站，越详细效果越好哦"
-                :rows="4"
-                :maxlength="1000"
-                @keydown.enter.prevent="sendMessage"
-                :disabled="isGenerating || !hasChatPermission"
-              />
-            </a-tooltip>
-            <a-tooltip v-else-if="!canEdit" :title="`${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
+            <a-tooltip v-if="isTeamApp && !canEdit" :title="`${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
               <a-textarea
                 v-model:value="userInput"
                 placeholder="请描述你想生成的网站，越详细效果越好哦"
@@ -131,15 +111,15 @@
               placeholder="请描述你想生成的网站，越详细效果越好哦"
               :rows="4"
               :maxlength="1000"
-                @keydown.enter.prevent="sendMessage"
-                :disabled="isGenerating"
+              @keydown.enter.prevent="sendMessage"
+              :disabled="isGenerating"
             />
             <div class="input-actions">
               <a-button
                 type="primary"
                 @click="sendMessage"
                 :loading="isGenerating"
-                :disabled="!hasChatPermission || !canEdit"
+                :disabled="(isTeamApp && !canEdit)"
               >
                 <template #icon>
                   <SendOutlined />
@@ -147,7 +127,19 @@
               </a-button>
             </div>
           </div>
+        </div>
 
+        <!-- 权限提示（没有权限时显示） -->
+        <div v-else class="permission-container">
+          <div class="permission-alert">
+            <a-alert 
+              message="您没有对话权限" 
+              description="请联系应用创建者邀请您加入团队，或者您需要成为应用的所有者才能进行对话。"
+              type="warning" 
+              show-icon 
+              banner
+            />
+          </div>
         </div>
       </div>
 
@@ -309,12 +301,17 @@ const isAdmin = computed(() => {
 // 用户是否有对话权限
 const hasChatPermission = ref(false)
 
+// 是否为团队应用
+const isTeamApp = computed(() => {
+  return appInfo.value?.isTeam === 1
+})
+
 // 应用详情相关
 const appDetailVisible = ref(false)
 
 // WebSocket连接
 const connectWebSocket = () => {
-  if (!appId.value) return
+  if (!appId.value || !isTeamApp.value) return
 
   try {
     // 构建WebSocket URL
@@ -625,16 +622,18 @@ const loadMoreHistory = async () => {
 
 // 发送初始消息
 const sendInitialMessage = async (prompt: string) => {
-  // 发送WebSocket消息通知其他用户开始对话
-  sendWebSocketMessage({
-    type: 'USER_ENTER_EDIT',
-    user: {
-      id: loginUserStore.loginUser.id,
-      userName: loginUserStore.loginUser.userName,
-      userAvatar: loginUserStore.loginUser.userAvatar
-    },
-    editAction: prompt
-  })
+  // 只在团队应用中发送WebSocket消息通知其他用户开始对话
+  if (isTeamApp.value) {
+    sendWebSocketMessage({
+      type: 'USER_ENTER_EDIT',
+      user: {
+        id: loginUserStore.loginUser.id,
+        userName: loginUserStore.loginUser.userName,
+        userAvatar: loginUserStore.loginUser.userAvatar
+      },
+      editAction: prompt
+    })
+  }
 
   // 添加用户消息
   messages.value.push({
@@ -662,23 +661,30 @@ const sendInitialMessage = async (prompt: string) => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!userInput.value.trim() || isGenerating.value || !canEdit.value || !hasChatPermission.value) {
+  // 个人应用只需要检查基本条件，团队应用还需要检查编辑权限
+  const canSend = isTeamApp.value 
+    ? (!userInput.value.trim() || isGenerating.value || !canEdit.value || !hasChatPermission.value)
+    : (!userInput.value.trim() || isGenerating.value || !hasChatPermission.value)
+  
+  if (canSend) {
     return
   }
 
   const message = userInput.value.trim()
   userInput.value = ''
 
-  // 发送WebSocket消息通知其他用户开始对话
-  sendWebSocketMessage({
-    type: 'USER_ENTER_EDIT',
-    user: {
-      id: loginUserStore.loginUser.id,
-      userName: loginUserStore.loginUser.userName,
-      userAvatar: loginUserStore.loginUser.userAvatar
-    },
-    editAction: message
-  })
+  // 只在团队应用中发送WebSocket消息通知其他用户开始对话
+  if (isTeamApp.value) {
+    sendWebSocketMessage({
+      type: 'USER_ENTER_EDIT',
+      user: {
+        id: loginUserStore.loginUser.id,
+        userName: loginUserStore.loginUser.userName,
+        userAvatar: loginUserStore.loginUser.userAvatar
+      },
+      editAction: message
+    })
+  }
 
   // 添加用户消息
   messages.value.push({
@@ -746,16 +752,18 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
           messages.value[aiMessageIndex].loading = false
           scrollToBottom()
           
-          // 实时推送流式内容到其他用户
-          sendWebSocketMessage({
-            type: 'AI_EDIT_ACTION',
-            user: {
-              id: loginUserStore.loginUser.id,
-              userName: loginUserStore.loginUser.userName,
-              userAvatar: loginUserStore.loginUser.userAvatar
-            },
-            editAction: content
-          })
+          // 只在团队应用中实时推送流式内容到其他用户
+          if (isTeamApp.value) {
+            sendWebSocketMessage({
+              type: 'AI_EDIT_ACTION',
+              user: {
+                id: loginUserStore.loginUser.id,
+                userName: loginUserStore.loginUser.userName,
+                userAvatar: loginUserStore.loginUser.userAvatar
+              },
+              editAction: content
+            })
+          }
         }
       } catch (error) {
         console.error('解析消息失败:', error)
@@ -771,16 +779,18 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
       isGenerating.value = false
       eventSource?.close()
 
-      // 发送退出编辑状态消息
-      sendWebSocketMessage({
-        type: 'USER_EXIT_EDIT',
-        user: {
-          id: loginUserStore.loginUser.id,
-          userName: loginUserStore.loginUser.userName,
-          userAvatar: loginUserStore.loginUser.userAvatar
-        },
-        editAction: ''
-      })
+      // 只在团队应用中发送退出编辑状态消息
+      if (isTeamApp.value) {
+        sendWebSocketMessage({
+          type: 'USER_EXIT_EDIT',
+          user: {
+            id: loginUserStore.loginUser.id,
+            userName: loginUserStore.loginUser.userName,
+            userAvatar: loginUserStore.loginUser.userAvatar
+          },
+          editAction: ''
+        })
+      }
 
       // 延迟更新预览，确保后端已完成处理
       setTimeout(async () => {
@@ -798,16 +808,18 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
         isGenerating.value = false
         eventSource?.close()
 
-        // 发送退出编辑状态消息
-        sendWebSocketMessage({
-          type: 'USER_EXIT_EDIT',
-          user: {
-            id: loginUserStore.loginUser.id,
-            userName: loginUserStore.loginUser.userName,
-            userAvatar: loginUserStore.loginUser.userAvatar
-          },
-          editAction: ''
-        })
+        // 只在团队应用中发送退出编辑状态消息
+        if (isTeamApp.value) {
+          sendWebSocketMessage({
+            type: 'USER_EXIT_EDIT',
+            user: {
+              id: loginUserStore.loginUser.id,
+              userName: loginUserStore.loginUser.userName,
+              userAvatar: loginUserStore.loginUser.userAvatar
+            },
+            editAction: ''
+          })
+        }
 
         setTimeout(async () => {
           await fetchAppInfo()
@@ -831,16 +843,18 @@ const handleError = (error: unknown, aiMessageIndex: number) => {
   message.error('生成失败，请重试')
   isGenerating.value = false
   
-  // 发送退出编辑状态消息
-  sendWebSocketMessage({
-    type: 'USER_EXIT_EDIT',
-    user: {
-      id: loginUserStore.loginUser.id,
-      userName: loginUserStore.loginUser.userName,
-      userAvatar: loginUserStore.loginUser.userAvatar
-    },
-    editAction: ''
-  })
+  // 只在团队应用中发送退出编辑状态消息
+  if (isTeamApp.value) {
+    sendWebSocketMessage({
+      type: 'USER_EXIT_EDIT',
+      user: {
+        id: loginUserStore.loginUser.id,
+        userName: loginUserStore.loginUser.userName,
+        userAvatar: loginUserStore.loginUser.userAvatar
+      },
+      editAction: ''
+    })
+  }
 }
 
 // 更新预览
@@ -1065,6 +1079,8 @@ onUnmounted(() => {
   padding: 16px;
   overflow-y: auto;
   scroll-behavior: smooth;
+  /* 当没有权限时，让消息区域占用更多空间 */
+  min-height: 0;
 }
 
 .load-more-container {
@@ -1144,8 +1160,14 @@ onUnmounted(() => {
   background: white;
 }
 
+/* 权限提示区域 */
+.permission-container {
+  padding: 16px;
+  background: white;
+}
+
 .permission-alert {
-  margin-bottom: 12px;
+  margin: 0;
 }
 
 .input-wrapper {

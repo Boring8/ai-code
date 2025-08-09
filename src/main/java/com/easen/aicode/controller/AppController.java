@@ -126,6 +126,7 @@ public class AppController {
      * @return 创建结果
      */
     @PostMapping("/add")
+    @Transactional
     public BaseResponse<String> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(StrUtil.isBlank(appAddRequest.getInitPrompt()), ErrorCode.PARAMS_ERROR, "初始化提示词不能为空");
@@ -140,6 +141,7 @@ public class AppController {
         BeanUtil.copyProperties(appAddRequest, app);
         app.setUserId(loginUser.getId());
         boolean result = appService.save(app);
+        appUserService.inviteUserToApp(app.getId(), loginUser.getId(),1);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(String.valueOf(app.getId()));
     }
@@ -177,8 +179,6 @@ public class AppController {
                     ErrorCode.NO_AUTH_ERROR, "只有应用创始人才能修改团队属性");
         }
 
-        boolean isConvertingToTeam = appUpdateRequest.getIsTeam() != null && appUpdateRequest.getIsTeam() == 1;
-        
         App app = new App();
         app.setId(appId);
         app.setAppName(appUpdateRequest.getAppName());
@@ -187,17 +187,6 @@ public class AppController {
         
         boolean result = appService.updateById(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        
-        // 如果从个人应用转换为团队应用，将创建者添加到团队中
-        if (isConvertingToTeam) {
-            try {
-                appUserService.addCreatorToApp(appId, loginUser.getId());
-            } catch (Exception e) {
-                // 如果添加创建者到团队失败，记录日志但不影响应用更新
-                log.warn("将创建者添加到团队失败: appId={}, userId={}, error={}", 
-                        appId, loginUser.getId(), e.getMessage());
-            }
-        }
         
         return ResultUtils.success(true);
     }
@@ -333,9 +322,6 @@ public class AppController {
             ThrowUtils.throwIf(!appService.isAppCreator(appId, loginUser.getId()),
                     ErrorCode.NO_AUTH_ERROR, "只有应用创始人才能修改团队属性");
         }
-
-        boolean isConvertingToTeam = appUpdateRequest.getIsTeam() != null && appUpdateRequest.getIsTeam() == 1;
-
         App app = new App();
         app.setId(appId);
         app.setAppName(appUpdateRequest.getAppName());
@@ -344,18 +330,6 @@ public class AppController {
         app.setPriority(appUpdateRequest.getPriority());
         boolean result = appService.updateById(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-
-        // 如果从个人应用转换为团队应用，将创建者添加到团队中
-        if (isConvertingToTeam) {
-            try {
-                appUserService.addCreatorToApp(appId, loginUser.getId());
-            } catch (Exception e) {
-                // 如果添加创建者到团队失败，记录日志但不影响应用更新
-                log.warn("将创建者添加到团队失败: appId={}, userId={}, error={}",
-                        appId, loginUser.getId(), e.getMessage());
-            }
-        }
-
         return ResultUtils.success(true);
     }
 
@@ -421,7 +395,7 @@ public class AppController {
         ThrowUtils.throwIf(!isCreator, ErrorCode.NO_AUTH_ERROR, "只有应用创建者可以邀请用户");
 
         // 执行邀请
-        boolean result = appUserService.inviteUserToApp(appTeamInviteRequest.getAppId(), appTeamInviteRequest.getUserId());
+        boolean result = appUserService.inviteUserToApp(appTeamInviteRequest.getAppId(), appTeamInviteRequest.getUserId(),0);
         return ResultUtils.success(result);
     }
 

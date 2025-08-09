@@ -21,18 +21,11 @@ public interface AppUserService extends IService<AppUser> {
      *
      * @param appId  应用ID
      * @param userId 用户ID
+     * @param isCreate 是否为创建人操作（1是0否）
      * @return 是否成功
      */
-    boolean inviteUserToApp(Long appId, Long userId);
+    boolean inviteUserToApp(Long appId, Long userId,Integer isCreate);
 
-    /**
-     * 将创建者添加到应用团队（用于创建团队应用时）
-     *
-     * @param appId  应用ID
-     * @param userId 创建者用户ID
-     * @return 是否成功
-     */
-    boolean addCreatorToApp(Long appId, Long userId);
 
     /**
      * 从应用团队中移除用户

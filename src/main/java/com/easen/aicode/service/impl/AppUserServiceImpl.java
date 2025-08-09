@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-
 /**
  * 应用用户关联 服务层实现。
  *
@@ -43,20 +42,23 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
     private UserService userService;
 
     @Override
-    public boolean inviteUserToApp(Long appId, Long userId) {
+    public boolean inviteUserToApp(Long appId, Long userId, Integer isCreate) {
         // 参数校验
         if (appId == null || userId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不能为空");
         }
+        //如果不是创建团队，就校验
+        if (isCreate == 0) {
+            // 检查应用是否存在且为团队应用
+            App app = appService.getById(appId);
+            if (app == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+            }
+            if (app.getIsTeam() == null || app.getIsTeam() != 1) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "该应用不是团队应用");
+            }
+        }
 
-        // 检查应用是否存在且为团队应用
-        App app = appService.getById(appId);
-        if (app == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        }
-        if (app.getIsTeam() == null || app.getIsTeam() != 1) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该应用不是团队应用");
-        }
 
         // 检查用户是否存在
         User user = userService.getById(userId);
@@ -75,50 +77,7 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         appUser.setUserId(userId);
         appUser.setCreateTime(LocalDateTime.now());
         appUser.setUpdateTime(LocalDateTime.now());
-
-        return this.save(appUser);
-    }
-
-    @Override
-    public boolean addCreatorToApp(Long appId, Long userId) {
-        // 参数校验
-        if (appId == null || userId == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不能为空");
-        }
-
-        // 检查应用是否存在且为团队应用
-        App app = appService.getById(appId);
-        if (app == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        }
-        if (app.getIsTeam() == null || app.getIsTeam() != 1) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该应用不是团队应用");
-        }
-
-        // 检查用户是否存在
-        User user = userService.getById(userId);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
-        }
-
-
-
-        // 检查用户是否已经在团队中
-        if (isUserInApp(appId, userId)) {
-            // 如果已经在团队中，直接返回成功
-            return true;
-        }
-
-        // 创建关联记录
-        AppUser appUser = new AppUser();
-        appUser.setAppId(appId);
-        appUser.setUserId(userId);
-        appUser.setCreateTime(LocalDateTime.now());
-        appUser.setUpdateTime(LocalDateTime.now());
-        // 检查用户是否为应用创建者
-        if (app.getUserId().equals(userId)) {
-            appUser.setIsCreate(1);
-        }
+        appUser.setIsCreate(isCreate);
         return this.save(appUser);
     }
 
