@@ -32,6 +32,12 @@
           </template>
           应用详情
         </a-button>
+        <a-button type="default" @click="downloadCode" :loading="downloading" :disabled="!appInfo?.id">
+          <template #icon>
+            <DownloadOutlined />
+          </template>
+          下载代码
+        </a-button>
         <a-button type="primary" @click="deployApp" :loading="deploying">
           <template #icon>
             <CloudUploadOutlined />
@@ -214,8 +220,11 @@ import {
   getAppById,
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
-  checkUserInApp,
+  downloadAppCode,
 } from '@/api/appController'
+import {
+  checkUserInApp,
+} from '@/api/appUserController'
 import { listAppChatHistory } from '../../api/chatHistoryController'
 import { CodeGenTypeEnum } from '@/utils/codeGenTypes'
 import request from '@/request'
@@ -233,6 +242,7 @@ import {
   ExportOutlined,
   InfoCircleOutlined,
   ReloadOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -288,6 +298,9 @@ const previewReady = ref(false)
 const deploying = ref(false)
 const deployModalVisible = ref(false)
 const deployUrl = ref('')
+
+// 下载相关
+const downloading = ref(false)
 
 // 权限相关
 const isOwner = computed(() => {
@@ -900,6 +913,54 @@ const deployApp = async () => {
     message.error('部署失败，请重试')
   } finally {
     deploying.value = false
+  }
+}
+
+// 下载代码
+const downloadCode = async () => {
+  if (!appId.value) {
+    message.error('应用ID不存在')
+    return
+  }
+
+  downloading.value = true
+  try {
+    // 使用智能AppId处理，大数值保持字符串格式，小数值转换为number
+    const res = await downloadAppCode({
+      appId: getAppIdForApi(appId.value) as number,
+    }, {
+      responseType: 'blob', // 设置响应类型为blob以处理二进制数据
+    })
+
+    // 从响应头中获取文件名
+    const contentDisposition = res.headers['content-disposition'] || res.headers['Content-Disposition']
+    let fileName = 'app-code.zip'
+    
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (fileNameMatch && fileNameMatch[1]) {
+        fileName = fileNameMatch[1].replace(/['"]/g, '')
+      }
+    }
+
+    // 创建下载链接
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    
+    // 清理资源
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    message.success('代码下载成功')
+  } catch (error) {
+    console.error('下载失败：', error)
+    message.error('下载失败，请重试')
+  } finally {
+    downloading.value = false
   }
 }
 

@@ -12,6 +12,7 @@ import com.easen.aicode.core.hander.StreamHandlerExecutor;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
+import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.mapper.AppMapper;
@@ -19,15 +20,15 @@ import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
 import com.easen.aicode.model.enums.CodeGenTypeEnum;
 import com.easen.aicode.model.vo.AppVO;
-import com.easen.aicode.service.AppService;
-import com.easen.aicode.service.AppUserService;
-import com.easen.aicode.service.ChatHistoryService;
-import com.easen.aicode.service.ScreenshotService;
+import com.easen.aicode.service.*;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
@@ -172,6 +173,17 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             boolean updated = this.updateById(updateApp);
             ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
         });
+    }
+    @Autowired
+    private AppMapper appMapper;
+
+    @Override
+    @Transactional
+    public String addApp(App app,Long userId) {
+        int result = appMapper.insert(app);
+        appUserService.inviteUserToApp(app.getId(), userId,1);
+        ThrowUtils.throwIf(result != 1, ErrorCode.OPERATION_ERROR);
+        return String.valueOf(app.getId());
     }
 
     @Override

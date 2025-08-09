@@ -103,7 +103,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
-import { listMyTeamAppByPage } from '@/api/appController'
+import { listMyTeamAppByPage } from '@/api/appUserController'
 import { getDeployUrl } from '@/config/env'
 import AppCard from '@/components/AppCard.vue'
 

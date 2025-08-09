@@ -7,40 +7,37 @@ import com.easen.aicode.annotation.AuthCheck;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.DeleteRequest;
 import com.easen.aicode.common.ResultUtils;
+import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.constant.UserConstant;
+import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
 import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppDeployRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
-import com.easen.aicode.model.dto.app.AppTeamQueryRequest;
 import com.easen.aicode.model.dto.app.AppUpdateRequest;
-import com.easen.aicode.model.dto.app.AppTeamInviteRequest;
-import com.easen.aicode.model.dto.app.AppTeamRemoveRequest;
-import com.easen.aicode.model.dto.app.AppTeamMemberQueryRequest;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.AppVO;
-import com.easen.aicode.model.vo.AppTeamMemberVO;
 import com.easen.aicode.service.AppService;
-import com.easen.aicode.service.AppUserService;
+import com.easen.aicode.service.ProjectDownloadService;
 import com.easen.aicode.service.UserService;
 import com.mybatisflex.core.paginate.Page;
-
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 应用 控制层。
@@ -58,8 +55,7 @@ public class AppController {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private AppUserService appUserService;
+
 
     /**
      * 应用聊天生成代码（流式 SSE）
@@ -126,24 +122,19 @@ public class AppController {
      * @return 创建结果
      */
     @PostMapping("/add")
-    @Transactional
     public BaseResponse<String> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(StrUtil.isBlank(appAddRequest.getInitPrompt()), ErrorCode.PARAMS_ERROR, "初始化提示词不能为空");
-        
         // 验证应用名称长度不超过10个字
         String appName = appAddRequest.getAppName();
         ThrowUtils.throwIf(StrUtil.isBlank(appName), ErrorCode.PARAMS_ERROR, "应用名称不能为空");
         ThrowUtils.throwIf(appName.length() > 10, ErrorCode.PARAMS_ERROR, "应用名称不能超过10个字");
-        
         User loginUser = userService.getLoginUser(request);
         App app = new App();
         BeanUtil.copyProperties(appAddRequest, app);
         app.setUserId(loginUser.getId());
-        boolean result = appService.save(app);
-        appUserService.inviteUserToApp(app.getId(), loginUser.getId(),1);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        return ResultUtils.success(String.valueOf(app.getId()));
+        String appId = appService.addApp(app,loginUser.getId());
+        return ResultUtils.success(appId);
     }
 
     /**
@@ -155,7 +146,6 @@ public class AppController {
      * @return 更新结果
      */
     @PostMapping("/update/my")
-    @Transactional
     public BaseResponse<Boolean> updateMyApp(@RequestBody AppUpdateRequest appUpdateRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appUpdateRequest == null || appUpdateRequest.getId() == null, ErrorCode.PARAMS_ERROR);
         
@@ -370,142 +360,42 @@ public class AppController {
         return ResultUtils.success(app);
     }
 
-    // ==================== 团队协作相关接口 ====================
+
+    @Resource
+    private ProjectDownloadService projectDownloadService;
 
     /**
-     * 邀请用户加入应用团队
+     * 下载应用代码
      *
-     * @param appTeamInviteRequest 邀请请求
-     * @param request              请求对象
-     * @return 邀请结果
+     * @param appId    应用ID
+     * @param request  请求
+     * @param response 响应
      */
-    @PostMapping("/team/invite")
-    public BaseResponse<Boolean> inviteUserToApp(@RequestBody AppTeamInviteRequest appTeamInviteRequest, 
-                                                HttpServletRequest request) {
-        ThrowUtils.throwIf(appTeamInviteRequest == null, ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(appTeamInviteRequest.getAppId() == null || appTeamInviteRequest.getUserId() == null, 
-                          ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
-
-        // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
-        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
-
-        // 验证当前用户是否为应用创建者
-        boolean isCreator = appService.isAppCreator(appTeamInviteRequest.getAppId(), loginUser.getId());
-        ThrowUtils.throwIf(!isCreator, ErrorCode.NO_AUTH_ERROR, "只有应用创建者可以邀请用户");
-
-        // 执行邀请
-        boolean result = appUserService.inviteUserToApp(appTeamInviteRequest.getAppId(), appTeamInviteRequest.getUserId(),0);
-        return ResultUtils.success(result);
-    }
-
-    /**
-     * 从应用团队中移除用户
-     *
-     * @param appTeamRemoveRequest 移除请求
-     * @param request              请求对象
-     * @return 移除结果
-     */
-    @PostMapping("/team/remove")
-    public BaseResponse<Boolean> removeUserFromApp(@RequestBody AppTeamRemoveRequest appTeamRemoveRequest, 
-                                                  HttpServletRequest request) {
-        ThrowUtils.throwIf(appTeamRemoveRequest == null, ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(appTeamRemoveRequest.getAppId() == null || appTeamRemoveRequest.getUserId() == null, 
-                          ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
-
-        // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
-        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
-
-        // 验证当前用户是否为应用创建者
-        boolean isCreator = appService.isAppCreator(appTeamRemoveRequest.getAppId(), loginUser.getId());
-        ThrowUtils.throwIf(!isCreator, ErrorCode.NO_AUTH_ERROR, "只有应用创建者可以移除用户");
-
-        // 执行移除
-        boolean result = appUserService.removeUserFromApp(appTeamRemoveRequest.getAppId(), appTeamRemoveRequest.getUserId());
-        return ResultUtils.success(result);
-    }
-
-    /**
-     * 获取应用团队成员列表
-     *
-     * @param appId 应用ID
-     * @return 团队成员列表
-     */
-    @GetMapping("/team/members")
-    public BaseResponse<List<AppTeamMemberVO>> getAppTeamMembers(@RequestParam Long appId) {
+    @GetMapping("/download/{appId}")
+    public void downloadAppCode(@PathVariable Long appId,
+                                HttpServletRequest request,
+                                HttpServletResponse response) {
+        // 1. 基础校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
-
-        List<AppTeamMemberVO> members = appUserService.getAppTeamMembers(appId);
-        return ResultUtils.success(members);
-    }
-
-    /**
-     * 分页获取应用团队成员
-     *
-     * @param appTeamMemberQueryRequest 查询请求
-     * @return 分页结果
-     */
-    @PostMapping("/team/members/page")
-    public BaseResponse<Page<AppTeamMemberVO>> getAppTeamMembersByPage(@RequestBody AppTeamMemberQueryRequest appTeamMemberQueryRequest) {
-        ThrowUtils.throwIf(appTeamMemberQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(appTeamMemberQueryRequest.getAppId() == null, ErrorCode.PARAMS_ERROR, "应用ID不能为空");
-
-        Integer pageNum = appTeamMemberQueryRequest.getPageNum();
-        Integer pageSize = appTeamMemberQueryRequest.getPageSize();
-        
-        Page<AppTeamMemberVO> page = appUserService.getAppTeamMembersByPage(
-                appTeamMemberQueryRequest.getAppId(), pageNum, pageSize);
-        
-        return ResultUtils.success(page);
-    }
-
-    /**
-     * 检查用户是否为应用团队成员
-     *
-     * @param appId  应用ID
-     * @param userId 用户ID
-     * @return 是否为团队成员
-     */
-    @GetMapping("/team/check")
-    public BaseResponse<Boolean> checkUserInApp(@RequestParam Long appId, @RequestParam Long userId) {
-        ThrowUtils.throwIf(appId == null || userId == null, ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
-
-        boolean isMember = appUserService.isUserInApp(appId, userId);
-        return ResultUtils.success(isMember);
-    }
-
-    /**
-     * 分页查询自己有参与的团队应用列表（支持根据名称查询，每页最多 20 个）
-     *
-     * @param appTeamQueryRequest 查询请求
-     * @param request             HTTP请求
-     * @return 团队应用列表
-     */
-    @PostMapping("/list/my/team")
-    public BaseResponse<Page<AppVO>> listMyTeamAppByPage(@RequestBody AppTeamQueryRequest appTeamQueryRequest, 
-                                                        HttpServletRequest request) {
-        ThrowUtils.throwIf(appTeamQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        
+        // 2. 查询应用信息
+        App app = appService.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        // 3. 权限校验：只有应用创建者可以下载代码
         User loginUser = userService.getLoginUser(request);
-        appTeamQueryRequest.setUserId(loginUser.getId());
-        
-        // 限制每页最多20个
-        Integer pageSize = Math.min(appTeamQueryRequest.getPageSize(), 20);
-        appTeamQueryRequest.setPageSize(pageSize);
-        
-        long pageNum = appTeamQueryRequest.getPageNum();
-        String appName = appTeamQueryRequest.getAppName();
-        
-        // 调用服务查询用户参与的团队应用
-        Page<App> appPage = appUserService.getUserTeamAppsByPage(
-                loginUser.getId(), appName, (int) pageNum, pageSize);
-        
-        // 转换为AppVO
-        Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
-        List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
-        appVOPage.setRecords(appVOList);
-        
-        return ResultUtils.success(appVOPage);
+        if (!app.getUserId().equals(loginUser.getId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限下载该应用代码");
+        }
+        // 4. 构建应用代码目录路径（生成目录，非部署目录）
+        String codeGenType = app.getCodeGenType();
+        String sourceDirName = codeGenType + "_" + appId;
+        String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + sourceDirName;
+        // 5. 检查代码目录是否存在
+        File sourceDir = new File(sourceDirPath);
+        ThrowUtils.throwIf(!sourceDir.exists() || !sourceDir.isDirectory(),
+                ErrorCode.NOT_FOUND_ERROR, "应用代码不存在，请先生成代码");
+        // 6. 生成下载文件名（不建议添加中文内容）
+        String downloadFileName = String.valueOf(appId);
+        // 7. 调用通用下载服务
+        projectDownloadService.downloadProjectAsZip(sourceDirPath, downloadFileName, response);
     }
 }

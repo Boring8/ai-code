@@ -169,7 +169,7 @@ import {
   getAppTeamMembers, 
   inviteUserToApp, 
   removeUserFromApp 
-} from '../api/appController'
+} from '../api/appUserController'
 import { listUserVoByPage } from '../api/userController'
 import { useLoginUserStore } from '../stores/loginUser'
 

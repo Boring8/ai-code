@@ -217,6 +217,10 @@ declare namespace API {
     id?: number
   }
 
+  type downloadAppCodeParams = {
+    appId: number
+  }
+
   type getAppByIdAdminParams = {
     id: number
   }
@@ -356,6 +360,5 @@ declare namespace API {
     userAvatar?: string
     userProfile?: string
     userRole?: string
-    createTime?: string
   }
 }
