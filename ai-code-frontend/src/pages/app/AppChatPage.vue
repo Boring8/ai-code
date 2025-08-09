@@ -84,6 +84,9 @@
                   <a-spin size="small" />
                   <span>AI 正在思考...</span>
                 </div>
+                <div v-if="message.userName" class="message-user ai-message-user">
+                  回复 {{ message.userName }}
+                </div>
               </div>
             </div>
           </div>
@@ -144,34 +147,23 @@
               </a-button>
             </div>
           </div>
-          <!-- 显示当前编辑状态 -->
-          <div v-if="currentEditingUser && currentEditingUser.id !== loginUserStore.loginUser.id" class="editing-status">
-            <a-alert 
-              :message="`${currentEditingUser.userName} 正在对话中，请稍候...`" 
-              :description="isStreamingFromOther ? '正在实时同步AI生成内容...' : '等待AI响应中...'"
-              type="info" 
-              show-icon 
-              banner
-            />
-          </div>
-          <!-- 显示流式内容状态 -->
-          <div v-if="isStreamingFromOther && streamingUser" class="streaming-status">
-            <a-alert 
-              :message="`正在同步 ${streamingUser.userName} 的AI生成内容`" 
-              type="success" 
-              show-icon 
-              banner
-            />
-          </div>
+
         </div>
       </div>
 
       <!-- 右侧网页展示区域 -->
       <div class="preview-section">
         <div class="preview-header">
-          <h3>生成后的网页展示</h3>
+          <h3>
+            <span v-if="isOtherUserGenerating && otherGeneratingUser">
+              {{ otherGeneratingUser.userName }} 生成的网页展示
+            </span>
+            <span v-else>
+              生成后的网页展示
+            </span>
+          </h3>
           <div class="preview-actions">
-            <a-button v-if="previewUrl" type="link" @click="openInNewTab">
+            <a-button v-if="previewUrl && !isGenerating && !isOtherUserGenerating" type="link" @click="openInNewTab">
               <template #icon>
                 <ExportOutlined />
               </template>
@@ -180,13 +172,17 @@
           </div>
         </div>
         <div class="preview-content">
-          <div v-if="!previewUrl && !isGenerating" class="preview-placeholder">
+          <div v-if="!previewUrl && !isGenerating && !isOtherUserGenerating" class="preview-placeholder">
             <div class="placeholder-icon">🌐</div>
             <p>网站文件生成完成后将在这里展示</p>
           </div>
           <div v-else-if="isGenerating" class="preview-loading">
             <a-spin size="large" />
             <p>正在生成网站...</p>
+          </div>
+          <div v-else-if="isOtherUserGenerating && otherGeneratingUser" class="preview-loading">
+            <a-spin size="large" />
+            <p>{{ otherGeneratingUser.userName }} 正在生成网站...</p>
           </div>
           <iframe
             v-else
@@ -267,6 +263,10 @@ const streamingContent = ref<string>('')
 const streamingUser = ref<API.UserVO | null>(null)
 const isStreamingFromOther = ref(false)
 
+// 其他用户代码生成状态
+const isOtherUserGenerating = ref(false)
+const otherGeneratingUser = ref<API.UserVO | null>(null)
+
 // 对话相关
 interface Message {
   id?: number
@@ -345,12 +345,7 @@ const connectWebSocket = () => {
     websocket.onclose = () => {
       console.log('WebSocket连接已关闭')
       wsConnected.value = false
-      // 尝试重新连接
-      setTimeout(() => {
-        if (appId.value) {
-          connectWebSocket()
-        }
-      }, 3000)
+
     }
   } catch (error) {
     console.error('建立WebSocket连接失败:', error)
@@ -379,9 +374,6 @@ const handleWebSocketMessage = (data: any) => {
       }
       if (data.currentEditingUser) {
         currentEditingUser.value = data.currentEditingUser
-        if (data.currentEditingUser.id !== loginUserStore.loginUser.id) {
-          message.info(`${data.currentEditingUser.userName} 正在编辑中`)
-        }
       }
       break
       
@@ -391,9 +383,26 @@ const handleWebSocketMessage = (data: any) => {
       // 用户开始对话
       if (data.user) {
         currentEditingUser.value = data.user
-        // if (data.user.id !== loginUserStore.loginUser.id) {
-        //   message.info(`${data.user.userName} 开始对话，请稍候...`)
-        // }
+        if (data.user.id !== loginUserStore.loginUser.id) {
+          // 其他用户开始生成代码，显示加载状态
+          isOtherUserGenerating.value = true
+          otherGeneratingUser.value = data.user
+          
+          // 显示其他用户的输入消息
+          if (data.editAction) {
+            messages.value.push({
+              type: 'user',
+              content: data.editAction,
+              userName: data.user.userName,
+              userAvatar: data.user.userAvatar
+            })
+            
+            // 滚动到底部
+            nextTick(() => {
+              scrollToBottom()
+            })
+          }
+        }
       }
       break
       
@@ -406,9 +415,16 @@ const handleWebSocketMessage = (data: any) => {
         streamingUser.value = null
         isStreamingFromOther.value = false
         
+        // 如果是其他用户结束生成，清除其他用户生成状态
         if (data.user.id !== loginUserStore.loginUser.id) {
-          message.success(`${data.user.userName} 已完成对话，您可以开始编辑了`)
+          isOtherUserGenerating.value = false
+          otherGeneratingUser.value = null
         }
+        
+        // 用户结束对话时重新调用updatePreview刷新浏览网站
+        setTimeout(async () => {
+        updatePreview()
+      }, 1000)
       }
       break
       
@@ -513,7 +529,7 @@ const fetchAppInfo = async () => {
       await loadChatHistory()
 
       // 检查是否需要自动发送初始提示词
-      if (appInfo.value.initPrompt && isOwner.value && messages.value.length === 0) {
+      if (appInfo.value?.initPrompt && isOwner.value && messages.value.length === 0) {
         await sendInitialMessage(appInfo.value.initPrompt)
       }
 
@@ -563,6 +579,7 @@ const loadChatHistory = async (loadMore = false) => {
         type: msg.messageType === 'user' ? 'user' : 'ai',
         content: msg.message || '',
         createTime: msg.createTime,
+        userName: msg.userName,
       }))
 
       if (loadMore) {
@@ -1097,9 +1114,17 @@ onUnmounted(() => {
 }
 
 .message-user {
-  font-size: 11px;
-  opacity: 0.8;
-  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  margin-top: 6px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.ai-message-user {
+  text-align: left;
+  color: #666;
+  font-style: italic;
 }
 
 .message-avatar {
@@ -1137,13 +1162,7 @@ onUnmounted(() => {
   right: 8px;
 }
 
-.editing-status {
-  margin-top: 8px;
-}
 
-.streaming-status {
-  margin-top: 8px;
-}
 
 /* 右侧预览区域 */
 .preview-section {
