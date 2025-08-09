@@ -55,8 +55,6 @@ public class AppController {
     @Autowired
     private UserService userService;
 
-
-
     /**
      * 应用聊天生成代码（流式 SSE）
      *
@@ -123,18 +121,8 @@ public class AppController {
      */
     @PostMapping("/add")
     public BaseResponse<String> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
-        ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(StrUtil.isBlank(appAddRequest.getInitPrompt()), ErrorCode.PARAMS_ERROR, "初始化提示词不能为空");
-        // 验证应用名称长度不超过10个字
-        String appName = appAddRequest.getAppName();
-        ThrowUtils.throwIf(StrUtil.isBlank(appName), ErrorCode.PARAMS_ERROR, "应用名称不能为空");
-        ThrowUtils.throwIf(appName.length() > 10, ErrorCode.PARAMS_ERROR, "应用名称不能超过10个字");
-        User loginUser = userService.getLoginUser(request);
-        App app = new App();
-        BeanUtil.copyProperties(appAddRequest, app);
-        app.setUserId(loginUser.getId());
-        app.setInitPrompt(appAddRequest.getInitPrompt());
-        String appId = appService.addApp(app,loginUser.getId());
+
+        String appId = appService.addApp(appAddRequest,request);
         return ResultUtils.success(appId);
     }
 

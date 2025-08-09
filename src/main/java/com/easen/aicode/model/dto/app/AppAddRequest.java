@@ -12,15 +12,6 @@ import java.io.Serializable;
 @Data
 public class AppAddRequest implements Serializable {
 
-    /**
-     * 应用名称
-     */
-    private String appName;
-
-    /**
-     * 应用封面
-     */
-    private String cover;
 
     /**
      * 应用初始化的 prompt

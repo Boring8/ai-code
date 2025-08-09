@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.easen.aicode.ai.AiCodeGenNameService;
 import com.easen.aicode.ai.AiCodeGenTypeRoutingService;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.core.AiCodeGeneratorFacade;
@@ -62,6 +63,16 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private ScreenshotService screenshotService;
+
+    @Resource
+    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
+
+    @Autowired
+    private UserService userService;
+
+    @Resource
+    private VueProjectBuilder vueProjectBuilder;
+
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
         // 1. 参数校验
@@ -91,8 +102,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     }
 
-    @Resource
-    private VueProjectBuilder vueProjectBuilder;
+
     @Override
     public String deployApp(Long appId, User loginUser) {
         // 1. 参数校验
@@ -143,6 +153,11 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         // 9. 更新数据库
         App updateApp = new App();
+        if(app.getAppName() == null){
+            // 生成名称
+            String appName = aiCodeGenNameService.generateAppName(app.getInitPrompt());
+            updateApp.setAppName(appName);
+        }
         updateApp.setId(appId);
         updateApp.setDeployKey(deployKey);
         updateApp.setDeployedTime(LocalDateTime.now());
@@ -165,8 +180,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     public void generateAppScreenshotAsync(Long appId, String appUrl) {
         // 使用虚拟线程并执行
         Thread.startVirtualThread(() -> {
+
             // 调用截图服务生成截图并上传
             String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
+
             // 更新数据库的封面
             App updateApp = new App();
             updateApp.setId(appId);
@@ -175,15 +192,23 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
         });
     }
+
     @Resource
-    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
+    private AiCodeGenNameService aiCodeGenNameService;
+
     @Override
     @Transactional
-    public String addApp(App app,Long userId) {
+    public String addApp(AppAddRequest appAddRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(StrUtil.isBlank(appAddRequest.getInitPrompt()), ErrorCode.PARAMS_ERROR, "初始化提示词不能为空");
+        User loginUser = userService.getLoginUser(request);
+        App app = new App();
+        BeanUtil.copyProperties(appAddRequest, app);
+        app.setUserId(loginUser.getId());
         CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(app.getInitPrompt());
         app.setCodeGenType(selectedCodeGenType.getValue());
         boolean result = this.save(app);
-        appUserService.inviteUserToApp(app.getId(), userId,1);
+        appUserService.inviteUserToApp(app.getId(), loginUser.getId(), 1);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return String.valueOf(app.getId());
     }
@@ -205,6 +230,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         return appList.stream().map(this::getAppVO).collect(Collectors.toList());
     }
+
     /**
      * 删除应用时关联删除对话历史
      *
@@ -271,7 +297,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (app == null) {
             return false;
         }
-        
+
         // 如果是创建者，直接有权限
         if (app.getUserId().equals(userId)) {
             return true;

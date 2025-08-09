@@ -28,13 +28,11 @@ public class AiCodeGeneratorServiceFactory {
     @Resource
     private ChatModel chatModel;
 
-
     @Resource
     private RedisChatMemoryStore redisChatMemoryStore;
 
     @Resource
     private ChatHistoryService chatHistoryService;
-
 
     @Resource
     private StreamingChatModel openAiStreamingChatModel;
@@ -115,8 +113,6 @@ public class AiCodeGeneratorServiceFactory {
     private String buildCacheKey(long appId, CodeGenTypeEnum codeGenType) {
         return appId + "_" + codeGenType.getValue();
     }
-
-
     /**
      * 创建 AI 代码生成器服务
      *

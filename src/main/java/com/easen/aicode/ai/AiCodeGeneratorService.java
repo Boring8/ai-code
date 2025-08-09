@@ -9,7 +9,6 @@ import dev.langchain4j.service.UserMessage;
 import reactor.core.publisher.Flux;
 
 public interface AiCodeGeneratorService {
-
     /**
      * 生成 HTML 代码
      *

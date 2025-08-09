@@ -85,9 +85,9 @@ public interface AppService extends IService<App> {
 
     /**
      * 创建app
-     * @param app 应用ID
-     * @param userId 用户ID
+     * @param appAddRequest 应用ID
+     * @param request
      * @return
      */
-    String addApp(App app,Long userId);
+    String addApp(AppAddRequest appAddRequest, HttpServletRequest request);
 }
