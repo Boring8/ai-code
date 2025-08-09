@@ -136,7 +136,7 @@ const handleTeamManagement = () => {
 
 <style scoped>
 .app-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: transparent;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -144,6 +144,9 @@ const handleTeamManagement = () => {
   transition: all 0.3s ease;
   cursor: pointer;
   backdrop-filter: blur(10px);
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.618 / 1;
 }
 
 .app-card:hover {
@@ -163,13 +166,18 @@ const handleTeamManagement = () => {
 }
 
 .app-preview {
-  height: 160px;
+  height: 100%;
   background: linear-gradient(135deg, #f8f9ff 0%, #e6f3ff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 12px;
 }
 
 .app-preview img {
@@ -391,24 +399,37 @@ const handleTeamManagement = () => {
 }
 
 .app-info {
-  padding: 16px;
+  padding: 20px 16px 16px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0.15) 80%, transparent 100%);
+  backdrop-filter: blur(12px);
+  border-radius: 0 0 12px 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .app-title {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
-  color: #1a1a1a;
+  color: #ffffff;
   line-height: 1.4;
   flex: 1;
   min-width: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .featured-badge {
@@ -433,7 +454,7 @@ const handleTeamManagement = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .app-author {
@@ -448,8 +469,9 @@ const handleTeamManagement = () => {
 
 .author-name {
   font-size: 14px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .app-actions {
@@ -458,9 +480,9 @@ const handleTeamManagement = () => {
 }
 
 .action-btn {
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   border: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 12px;
@@ -468,8 +490,8 @@ const handleTeamManagement = () => {
 }
 
 .action-btn:hover {
-  background: rgba(24, 144, 255, 0.1);
-  color: #1890ff;
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
 }
 
 /* 新增时间样式 */
@@ -478,7 +500,7 @@ const handleTeamManagement = () => {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #999;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .time-label {
@@ -486,17 +508,18 @@ const handleTeamManagement = () => {
 }
 
 .time-value {
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .app-preview {
-    height: 140px;
+  .app-card {
+    aspect-ratio: 1.618 / 1;
   }
   
   .app-info {
-    padding: 12px;
+    padding: 16px 12px 12px;
+    height: 38%;
   }
   
   .app-title {
