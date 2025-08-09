@@ -105,6 +105,19 @@
 
         <!-- 用户消息输入框 -->
         <div v-if="hasChatPermission" class="input-container">
+          <!-- 选中元素信息显示 -->
+          <div v-if="selectedElement" class="selected-element-info">
+            <a-alert
+              :message="`已选中元素：${selectedElement.tagName}`"
+              :description="`选择器：${selectedElement.selector}${selectedElement.textContent ? ' | 内容：' + selectedElement.textContent : ''}`"
+              type="info"
+              show-icon
+              closable
+              @close="clearSelectedElement"
+              class="element-alert"
+            />
+          </div>
+          
           <div class="input-wrapper">
             <a-tooltip v-if="isTeamApp && !canEdit" :title="`${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
               <a-textarea
@@ -126,6 +139,18 @@
               :disabled="isGenerating"
             />
             <div class="input-actions">
+              <a-button
+                type="default"
+                @click="toggleVisualEdit"
+                :disabled="!previewUrl || isGenerating"
+                class="visual-edit-btn"
+                :class="{ 'edit-mode-active': isVisualEditMode }"
+              >
+                <template #icon>
+                  <EditOutlined />
+                </template>
+                {{ isVisualEditMode ? '退出编辑' : '可视编辑' }}
+              </a-button>
               <a-button
                 type="primary"
                 @click="sendMessage"
@@ -189,6 +214,7 @@
           </div>
           <iframe
             v-else
+            ref="previewIframe"
             :src="previewUrl"
             class="preview-iframe"
             frameborder="0"
@@ -240,6 +266,7 @@ import DeploySuccessModal from '@/components/DeploySuccessModal.vue'
 import aiAvatar from '@/assets/logo.png'
 import { API_BASE_URL, getStaticPreviewUrl } from '@/config/env'
 import { toAppIdNumber, toAppIdString, getAppIdForApi } from '@/utils/appIdUtils'
+import VisualEditor, { type SelectedElement } from '@/utils/visualEditor'
 
 import {
   CloudUploadOutlined,
@@ -248,6 +275,7 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
   DownloadOutlined,
+  EditOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -326,6 +354,12 @@ const isTeamApp = computed(() => {
 
 // 应用详情相关
 const appDetailVisible = ref(false)
+
+// 可视化编辑相关
+const visualEditor = new VisualEditor()
+const isVisualEditMode = ref(false)
+const selectedElement = ref<SelectedElement | null>(null)
+const previewIframe = ref<HTMLIFrameElement>()
 
 // WebSocket连接
 const connectWebSocket = () => {
@@ -688,8 +722,34 @@ const sendMessage = async () => {
     return
   }
 
-  const message = userInput.value.trim()
+  let message = userInput.value.trim()
+  
+  // 如果有选中的元素，将元素信息添加到提示词中
+  if (selectedElement.value) {
+    const elementInfo = `\n\n请针对以下选中的元素进行修改：
+元素标签：${selectedElement.value.tagName}
+选择器：${selectedElement.value.selector}
+${selectedElement.value.id ? `ID：${selectedElement.value.id}` : ''}
+${selectedElement.value.className ? `CSS类：${selectedElement.value.className}` : ''}
+${selectedElement.value.textContent ? `文本内容：${selectedElement.value.textContent}` : ''}
+
+当前元素的HTML：
+${selectedElement.value.outerHTML}
+
+请根据我的要求修改这个元素：`
+    
+    message = message + elementInfo
+  }
+  
   userInput.value = ''
+  
+  // 发送消息后清除选中元素并退出编辑模式
+  if (selectedElement.value) {
+    clearSelectedElement()
+  }
+  if (isVisualEditMode.value) {
+    visualEditor.toggleEditMode()
+  }
 
   // 只在团队应用中发送WebSocket消息通知其他用户开始对话
   if (isTeamApp.value) {
@@ -986,6 +1046,40 @@ const openDeployedSite = () => {
 // iframe加载完成
 const onIframeLoad = () => {
   previewReady.value = true
+  
+  // iframe加载完成后设置可视化编辑器
+  if (previewIframe.value) {
+    visualEditor.setIframe(previewIframe.value)
+    
+    // 注入编辑脚本
+    setTimeout(() => {
+      injectVisualEditScript()
+    }, 500)
+  }
+}
+
+// 注入可视化编辑脚本
+const injectVisualEditScript = () => {
+  if (!previewIframe.value?.contentDocument) return
+  
+  try {
+    const script = previewIframe.value.contentDocument.createElement('script')
+    script.textContent = VisualEditor.getInjectionScript()
+    previewIframe.value.contentDocument.head.appendChild(script)
+  } catch (error) {
+    console.error('注入可视化编辑脚本失败:', error)
+  }
+}
+
+// 切换可视化编辑模式
+const toggleVisualEdit = () => {
+  visualEditor.toggleEditMode()
+}
+
+// 清除选中元素
+const clearSelectedElement = () => {
+  selectedElement.value = null
+  visualEditor.clearSelection()
 }
 
 // 编辑应用
@@ -1017,12 +1111,24 @@ const deleteApp = async () => {
 // 页面加载时获取应用信息
 onMounted(() => {
   fetchAppInfo()
+  
+  // 设置可视化编辑器回调
+  visualEditor.setCallbacks(
+    (element: SelectedElement | null) => {
+      selectedElement.value = element
+    },
+    (isEditMode: boolean) => {
+      isVisualEditMode.value = isEditMode
+    }
+  )
 })
 
 // 清理资源
 onUnmounted(() => {
   // 关闭WebSocket连接
   closeWebSocket()
+  // 清理可视化编辑器
+  visualEditor.destroy()
   // EventSource 会在组件卸载时自动清理
 })
 </script>
@@ -1241,6 +1347,15 @@ onUnmounted(() => {
   background: white;
 }
 
+/* 选中元素信息 */
+.selected-element-info {
+  margin-bottom: 12px;
+}
+
+.element-alert {
+  border-radius: 6px;
+}
+
 /* 权限提示区域 */
 .permission-container {
   padding: 16px;
@@ -1256,13 +1371,31 @@ onUnmounted(() => {
 }
 
 .input-wrapper .ant-input {
-  padding-right: 50px;
+  padding-right: 120px;
 }
 
 .input-actions {
   position: absolute;
   bottom: 8px;
   right: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+/* 可视化编辑按钮 */
+.visual-edit-btn {
+  transition: all 0.3s ease;
+}
+
+.visual-edit-btn.edit-mode-active {
+  background-color: #1890ff;
+  border-color: #1890ff;
+  color: white;
+}
+
+.visual-edit-btn.edit-mode-active:hover {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
 }
 
 
