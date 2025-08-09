@@ -288,6 +288,10 @@ const appId = ref<string>()
 
 // WebSocket相关
 let websocket: WebSocket | null = null
+let wsReconnectTimer: NodeJS.Timeout | null = null
+let wsReconnectAttempts = 0
+const maxReconnectAttempts = 5
+const reconnectDelay = 3000 // 3秒
 const onlineUsers = ref<API.UserVO[]>([])
 const currentEditingUser = ref<API.UserVO | null>(null)
 const canEdit = computed(() => !currentEditingUser.value || currentEditingUser.value.id === loginUserStore.loginUser.id)
@@ -367,13 +371,31 @@ const connectWebSocket = () => {
 
   try {
     // 构建WebSocket URL
-    const wsUrl = API_BASE_URL.replace('http', 'ws') + `/ws/app?appId=${appId.value}`
+    let wsUrl: string
+    
+    // 在开发环境中，使用当前页面的 host 连接 WebSocket，这样可以通过 Vite 代理
+    if (import.meta.env.DEV) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      wsUrl = `${protocol}//${window.location.host}/api/ws/app?appId=${appId.value}`
+    } else {
+      // 生产环境使用配置的 API_BASE_URL
+      wsUrl = API_BASE_URL.replace('http', 'ws') + `/ws/app?appId=${appId.value}`
+    }
+    
     console.log('正在连接WebSocket:', wsUrl)
     websocket = new WebSocket(wsUrl)
 
     websocket.onopen = () => {
       console.log('WebSocket连接已建立')
       wsConnected.value = true
+      wsReconnectAttempts = 0 // 重置重连计数器
+      
+      // 清除重连定时器
+      if (wsReconnectTimer) {
+        clearTimeout(wsReconnectTimer)
+        wsReconnectTimer = null
+      }
+      
       // WebSocket连接建立后，等待服务端发送INFO消息获取初始状态
     }
 
@@ -388,13 +410,26 @@ const connectWebSocket = () => {
 
     websocket.onerror = (error) => {
       console.error('WebSocket连接错误:', error)
-      message.error('WebSocket连接失败，团队协作功能不可用')
+      wsConnected.value = false
     }
 
-    websocket.onclose = () => {
-      console.log('WebSocket连接已关闭')
+    websocket.onclose = (event) => {
+      console.log('WebSocket连接已关闭', event.code, event.reason)
       wsConnected.value = false
-
+      
+      // 如果不是手动关闭且应该重连，则尝试重连
+      if (event.code !== 1000 && wsReconnectAttempts < maxReconnectAttempts && isTeamApp.value) {
+        wsReconnectAttempts++
+        console.log(`WebSocket将在${reconnectDelay}ms后尝试第${wsReconnectAttempts}次重连`)
+        
+        wsReconnectTimer = setTimeout(() => {
+          console.log(`正在进行第${wsReconnectAttempts}次WebSocket重连...`)
+          connectWebSocket()
+        }, reconnectDelay)
+      } else if (wsReconnectAttempts >= maxReconnectAttempts) {
+        console.error('WebSocket重连次数已达上限，停止重连')
+        message.error('WebSocket连接失败，团队协作功能不可用。请刷新页面重试。')
+      }
     }
   } catch (error) {
     console.error('建立WebSocket连接失败:', error)
@@ -522,9 +557,19 @@ const handleWebSocketMessage = (data: any) => {
 const closeWebSocket = () => {
   if (websocket) {
     // 直接关闭WebSocket连接，服务端会自动处理用户离开
-    websocket.close()
+    websocket.close(1000, '用户主动离开') // 正常关闭码
     websocket = null
   }
+  
+  // 清除重连定时器
+  if (wsReconnectTimer) {
+    clearTimeout(wsReconnectTimer)
+    wsReconnectTimer = null
+  }
+  
+  // 重置重连计数器
+  wsReconnectAttempts = 0
+  wsConnected.value = false
 }
 
 // 显示应用详情
