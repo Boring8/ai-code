@@ -3,7 +3,12 @@
     <!-- 顶部栏 -->
     <div class="header-bar">
       <div class="header-left">
-        <h1 class="app-name">{{ appInfo?.appName || '网站生成器' }}</h1>
+        <h1 class="app-name">
+          {{ appInfo?.appName || '网站生成器' }}
+          <span v-if="appInfo?.codeGenType" class="code-gen-type-tag">
+            {{ formatCodeGenType(appInfo.codeGenType) }}
+          </span>
+        </h1>
         <!-- 显示当前在线用户（仅团队应用） -->
         <div v-if="isTeamApp && onlineUsers.length > 0" class="online-users">
           <span class="online-label">在线用户：</span>
@@ -226,7 +231,7 @@ import {
   checkUserInApp,
 } from '@/api/appUserController'
 import { listAppChatHistory } from '../../api/chatHistoryController'
-import { CodeGenTypeEnum } from '@/utils/codeGenTypes'
+import { CodeGenTypeEnum, formatCodeGenType } from '@/utils/codeGenTypes'
 import request from '@/request'
 
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
@@ -1050,6 +1055,21 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.code-gen-type-tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #1890ff, #52c41a);
+  color: white;
+  border-radius: 16px;
+  text-transform: capitalize;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+  white-space: nowrap;
 }
 
 .online-users {

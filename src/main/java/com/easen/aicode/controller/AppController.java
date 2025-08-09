@@ -133,6 +133,7 @@ public class AppController {
         App app = new App();
         BeanUtil.copyProperties(appAddRequest, app);
         app.setUserId(loginUser.getId());
+        app.setInitPrompt(appAddRequest.getInitPrompt());
         String appId = appService.addApp(app,loginUser.getId());
         return ResultUtils.success(appId);
     }

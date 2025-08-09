@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.easen.aicode.ai.AiCodeGenTypeRoutingService;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.core.AiCodeGeneratorFacade;
 import com.easen.aicode.core.builder.VueProjectBuilder;
@@ -174,15 +175,16 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
         });
     }
-    @Autowired
-    private AppMapper appMapper;
-
+    @Resource
+    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
     @Override
     @Transactional
     public String addApp(App app,Long userId) {
-        int result = appMapper.insert(app);
+        CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(app.getInitPrompt());
+        app.setCodeGenType(selectedCodeGenType.getValue());
+        boolean result = this.save(app);
         appUserService.inviteUserToApp(app.getId(), userId,1);
-        ThrowUtils.throwIf(result != 1, ErrorCode.OPERATION_ERROR);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return String.valueOf(app.getId());
     }
 

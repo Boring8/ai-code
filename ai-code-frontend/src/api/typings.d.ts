@@ -20,7 +20,6 @@ declare namespace API {
     appName?: string
     cover?: string
     initPrompt?: string
-    codeGenType?: string
   }
 
   type AppDeployRequest = {

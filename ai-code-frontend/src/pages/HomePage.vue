@@ -7,7 +7,7 @@ import { addApp, listMyAppByPage, listFeaturedAppByPage } from '@/api/appControl
 import { listMyTeamAppByPage } from '@/api/appUserController'
 import { getDeployUrl } from '@/config/env'
 import AppCard from '@/components/AppCard.vue'
-import { CODE_GEN_TYPE_OPTIONS } from '@/utils/codeGenTypes'
+
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
@@ -16,11 +16,7 @@ const loginUserStore = useLoginUserStore()
 const userPrompt = ref('')
 const creating = ref(false)
 
-// 代码生成类型
-const codeGenType = ref('html')
 
-// 代码生成类型选项
-const codeGenTypeOptions = CODE_GEN_TYPE_OPTIONS
 
 // 我的应用数据
 const myApps = ref<API.AppVO[]>([])
@@ -72,7 +68,6 @@ const createApp = async () => {
     const res = await addApp({
       appName: appName,
       initPrompt: userPrompt.value.trim(),
-      codeGenType: codeGenType.value,
     })
 
     if (res.data.code === 0 && res.data.data) {
@@ -224,15 +219,7 @@ onMounted(() => {
               </a-button>
             </div>
             <div class="right-actions">
-              <div class="mode-selector">
-                <a-select
-                  v-model:value="codeGenType"
-                  :options="codeGenTypeOptions"
-                  size="small"
-                  class="mode-select"
-                  placeholder="选择模式"
-                />
-              </div>
+
               <a-button 
                 type="primary" 
                 size="large" 
