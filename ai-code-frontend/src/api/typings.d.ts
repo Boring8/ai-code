@@ -165,6 +165,12 @@ declare namespace API {
     message?: string
   }
 
+  type BaseResponseStringArray = {
+    code?: number
+    data?: string[]
+    message?: string
+  }
+
   type BaseResponseUser = {
     code?: number
     data?: User
@@ -213,6 +219,10 @@ declare namespace API {
   type checkUserInAppParams = {
     appId: number
     userId: number
+  }
+
+  type deleteImageParams = {
+    imageUrl: string
   }
 
   type DeleteRequest = {
@@ -300,6 +310,10 @@ declare namespace API {
 
   type serveStaticResourceParams = {
     deployKey: string
+  }
+
+  type uploadImagesParams = {
+    files: string[]
   }
 
   type User = {

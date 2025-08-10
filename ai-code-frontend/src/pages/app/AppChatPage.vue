@@ -132,6 +132,30 @@
             />
           </div>
           
+          <!-- 上传的图片预览 -->
+          <div v-if="uploadedImages.length > 0" class="uploaded-images">
+            <div class="images-title">已上传的图片：</div>
+            <div class="images-grid">
+              <div 
+                v-for="(imageUrl, index) in uploadedImages" 
+                :key="index"
+                class="image-item"
+              >
+                <img :src="imageUrl" :alt="`图片${index + 1}`" class="preview-image" />
+                <div class="image-overlay">
+                  <a-button 
+                    type="text" 
+                    size="small" 
+                    class="delete-btn"
+                    @click="uploadedImages.splice(index, 1)"
+                  >
+                    ✕
+                  </a-button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div class="input-wrapper">
             <a-tooltip v-if="isTeamApp && !canEdit" :title="`${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
               <a-textarea
@@ -153,6 +177,23 @@
               :disabled="isGenerating || isCancelling"
             />
             <div class="input-actions">
+              <!-- 上传图片按钮 -->
+              <UploadButton
+                :disabled="uploading || isGenerating || isCancelling || (isTeamApp && !canEdit)"
+                :multiple="true"
+                :max-count="5"
+                accept="image/*"
+                button-text="上传图片"
+                button-type="default"
+                button-size="middle"
+                :show-icon="true"
+                class="upload-btn"
+                @upload-success="handleUploadSuccess"
+                @upload-error="handleUploadError"
+                @upload-start="handleUploadStart"
+                @upload-end="handleUploadEnd"
+              />
+              
               <a-tooltip v-if="isTeamApp && (isOtherUserGenerating || !canEdit)" :title="isOtherUserGenerating ? `${otherGeneratingUser?.userName || '其他用户'} 正在生成中，请稍候...` : `${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
                 <a-button
                   type="default"
@@ -288,6 +329,7 @@ import { ref, onMounted, nextTick, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
+import UploadButton from '@/components/UploadButton.vue'
 import {
   getAppById,
   deployApp as deployAppApi,
@@ -366,6 +408,10 @@ const messages = ref<Message[]>([])
 const userInput = ref('')
 const isGenerating = ref(false)
 const messagesContainer = ref<HTMLElement>()
+
+// 上传相关状态
+const uploadedImages = ref<string[]>([])
+const uploading = ref(false)
 
 // 停止生成相关
 let currentEventSource: EventSource | null = null
@@ -626,6 +672,27 @@ const showAppDetail = () => {
   appDetailVisible.value = true
 }
 
+// 处理上传成功
+const handleUploadSuccess = (urls: string[]) => {
+  uploadedImages.value = [...uploadedImages.value, ...urls]
+  message.success(`成功上传 ${urls.length} 张图片`)
+}
+
+// 处理上传错误
+const handleUploadError = (error: string) => {
+  message.error(error)
+}
+
+// 处理上传开始
+const handleUploadStart = () => {
+  uploading.value = true
+}
+
+// 处理上传结束
+const handleUploadEnd = () => {
+  uploading.value = false
+}
+
 // 检查用户对话权限
 const checkChatPermission = async () => {
   if (!appId.value) return false
@@ -819,6 +886,12 @@ const sendMessage = async () => {
 
   let message = userInput.value.trim()
   
+  // 如果有上传的图片，将图片路径添加到消息中
+  if (uploadedImages.value.length > 0) {
+    const imageUrls = uploadedImages.value.join(', ')
+    message += `\n\n上传的图片路径：${imageUrls}`
+  }
+  
   // 如果有选中的元素，将元素信息添加到提示词中
   if (selectedElement.value) {
     const elementInfo = `\n\n请针对以下选中的元素进行修改：
@@ -845,6 +918,9 @@ ${selectedElement.value.outerHTML}
   if (isVisualEditMode.value) {
     visualEditor.toggleEditMode()
   }
+  
+  // 发送消息后清空上传的图片
+  uploadedImages.value = []
 
   // 只在团队应用中发送WebSocket消息通知其他用户开始对话
   if (isTeamApp.value) {
@@ -1583,6 +1659,86 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+/* 上传图片预览区域 */
+.uploaded-images {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.images-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.images-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.image-item {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s ease;
+}
+
+.image-item:hover {
+  border-color: #1890ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.image-item:hover .image-overlay {
+  opacity: 1;
+}
+
+.delete-btn {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 10px !important;
+  padding: 0 !important;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: #ff4d4f !important;
+}
+
 /* 选中元素信息 */
 .selected-element-info {
   margin-bottom: 12px;
@@ -1618,6 +1774,16 @@ onUnmounted(() => {
   right: 8px;
   display: flex;
   gap: 8px;
+}
+
+/* 上传按钮 */
+.upload-btn {
+  transition: all 0.3s ease;
+}
+
+.upload-btn:hover {
+  border-color: #1890ff;
+  color: #1890ff;
 }
 
 /* 可视化编辑按钮 */

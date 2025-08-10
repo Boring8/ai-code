@@ -7,6 +7,7 @@ import { addApp, listMyAppByPage, listFeaturedAppByPage } from '@/api/appControl
 import { listMyTeamAppByPage } from '@/api/appUserController'
 import { getDeployUrl } from '@/config/env'
 import AppCard from '@/components/AppCard.vue'
+import UploadButton from '@/components/UploadButton.vue'
 
 
 const router = useRouter()
@@ -15,6 +16,10 @@ const loginUserStore = useLoginUserStore()
 // 用户提示词
 const userPrompt = ref('')
 const creating = ref(false)
+
+// 上传相关状态
+const uploadedImages = ref<string[]>([])
+const uploading = ref(false)
 
 
 
@@ -47,6 +52,27 @@ const setPrompt = (prompt: string) => {
   userPrompt.value = prompt
 }
 
+// 处理上传成功
+const handleUploadSuccess = (urls: string[]) => {
+  uploadedImages.value = [...uploadedImages.value, ...urls]
+  message.success(`成功上传 ${urls.length} 张图片`)
+}
+
+// 处理上传错误
+const handleUploadError = (error: string) => {
+  message.error(error)
+}
+
+// 处理上传开始
+const handleUploadStart = () => {
+  uploading.value = true
+}
+
+// 处理上传结束
+const handleUploadEnd = () => {
+  uploading.value = false
+}
+
 // 创建应用
 const createApp = async () => {
   if (!userPrompt.value.trim()) {
@@ -65,9 +91,18 @@ const createApp = async () => {
     // 生成应用名称：取用户输入的前10位
     const appName = userPrompt.value.trim().substring(0, 10)
     
+    // 构建包含图片路径的提示词
+    let fullPrompt = userPrompt.value.trim()
+    
+    // 如果有上传的图片，将图片路径添加到提示词中
+    if (uploadedImages.value.length > 0) {
+      const imageUrls = uploadedImages.value.join(', ')
+      fullPrompt += `\n\n上传的图片路径：${imageUrls}`
+    }
+    
     const res = await addApp({
       appName: appName,
-      initPrompt: userPrompt.value.trim(),
+      initPrompt: fullPrompt,
     })
 
     if (res.data.code === 0 && res.data.data) {
@@ -196,6 +231,30 @@ onMounted(() => {
       <!-- 输入区域 -->
       <div class="input-section">
         <div class="input-container">
+          <!-- 上传的图片预览 -->
+          <div v-if="uploadedImages.length > 0" class="uploaded-images">
+            <div class="images-title">已上传的图片：</div>
+            <div class="images-grid">
+              <div 
+                v-for="(imageUrl, index) in uploadedImages" 
+                :key="index"
+                class="image-item"
+              >
+                <img :src="imageUrl" :alt="`图片${index + 1}`" class="preview-image" />
+                <div class="image-overlay">
+                  <a-button 
+                    type="text" 
+                    size="small" 
+                    class="delete-btn"
+                    @click="uploadedImages.splice(index, 1)"
+                  >
+                    ✕
+                  </a-button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <a-textarea
             v-model:value="userPrompt"
             placeholder="使用 NoCode 创建一个高效的小工具,帮我计算........"
@@ -205,18 +264,22 @@ onMounted(() => {
           />
           <div class="input-actions">
             <div class="left-actions">
-              <a-button type="text" class="action-btn">
-                <template #icon>
-                  <span class="action-icon">📤</span>
-                </template>
-                上传
-              </a-button>
-              <a-button type="text" class="action-btn">
-                <template #icon>
-                  <span class="action-icon">✨</span>
-                </template>
-                优化
-              </a-button>
+              <UploadButton
+                :disabled="uploading"
+                :multiple="true"
+                :max-count="5"
+                accept="image/*"
+                button-text="上传图片"
+                button-type="text"
+                button-size="middle"
+                :show-icon="true"
+                class="action-btn"
+                @upload-success="handleUploadSuccess"
+                @upload-error="handleUploadError"
+                @upload-start="handleUploadStart"
+                @upload-end="handleUploadEnd"
+              />
+
             </div>
             <div class="right-actions">
 
@@ -234,6 +297,8 @@ onMounted(() => {
             </div>
           </div>
         </div>
+        
+
       </div>
 
       <!-- 快捷模板 -->
@@ -550,6 +615,86 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 上传图片预览区域 */
+.uploaded-images {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(24, 144, 255, 0.1);
+}
+
+.images-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.images-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.image-item {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.image-item:hover {
+  border-color: rgba(24, 144, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.image-item:hover .image-overlay {
+  opacity: 1;
+}
+
+.delete-btn {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 12px !important;
+  padding: 0 !important;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: #ff4d4f !important;
 }
 
 /* 模板区域 */

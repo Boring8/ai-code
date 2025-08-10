@@ -2,6 +2,7 @@ package com.easen.aicode.manager;
 
 import com.easen.aicode.config.CosClientConfig;
 import com.qcloud.cos.COSClient;
+import com.qcloud.cos.model.DeleteObjectRequest;
 import com.qcloud.cos.model.PutObjectRequest;
 import com.qcloud.cos.model.PutObjectResult;
 import jakarta.annotation.Resource;
@@ -52,5 +53,36 @@ public class CosManager {
             log.error("文件上传到 COS 失败：{}，返回结果为空", file.getName());
             return null;
         }
+    }
+
+    /**
+     * 从 COS 删除文件
+     *
+     * @param key COS对象键（完整路径）
+     * @return 是否删除成功
+     */
+    public boolean deleteFile(String key) {
+        try {
+            DeleteObjectRequest deleteObjectRequest = new DeleteObjectRequest(cosClientConfig.getBucket(), key);
+            cosClient.deleteObject(deleteObjectRequest);
+            log.info("文件从 COS 删除成功：{}", key);
+            return true;
+        } catch (Exception e) {
+            log.error("文件从 COS 删除失败：{}", key, e);
+            return false;
+        }
+    }
+
+    /**
+     * 从 URL 中提取 COS 对象键
+     *
+     * @param url 文件访问URL
+     * @return COS对象键
+     */
+    public String extractKeyFromUrl(String url) {
+        if (url == null || !url.startsWith(cosClientConfig.getHost())) {
+            return null;
+        }
+        return url.substring(cosClientConfig.getHost().length());
     }
 }
