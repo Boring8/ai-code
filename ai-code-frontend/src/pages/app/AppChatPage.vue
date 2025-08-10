@@ -30,26 +30,32 @@
           <span class="status-text">{{ wsConnected ? '已连接' : '连接中...' }}</span>
         </div>
       </div>
-      <div class="header-right">
-        <a-button type="default" @click="showAppDetail">
-          <template #icon>
-            <InfoCircleOutlined />
-          </template>
-          应用详情
-        </a-button>
-        <a-button type="default" @click="downloadCode" :loading="downloading" :disabled="!appInfo?.id">
-          <template #icon>
-            <DownloadOutlined />
-          </template>
-          下载代码
-        </a-button>
-        <a-button type="primary" @click="deployApp" :loading="deploying">
-          <template #icon>
-            <CloudUploadOutlined />
-          </template>
-          部署按钮
-        </a-button>
-      </div>
+              <div class="header-right">
+          <a-button type="primary" @click="goHome" class="home-btn">
+            <template #icon>
+              <HomeOutlined />
+            </template>
+            返回首页
+          </a-button>
+          <a-button type="default" @click="showAppDetail">
+            <template #icon>
+              <InfoCircleOutlined />
+            </template>
+            应用详情
+          </a-button>
+          <a-button type="default" @click="downloadCode" :loading="downloading" :disabled="!appInfo?.id">
+            <template #icon>
+              <DownloadOutlined />
+            </template>
+            下载代码
+          </a-button>
+          <a-button type="primary" @click="deployApp" :loading="deploying">
+            <template #icon>
+              <CloudUploadOutlined />
+            </template>
+            部署按钮
+          </a-button>
+        </div>
     </div>
 
     <!-- 主要内容区域 -->
@@ -291,6 +297,7 @@ import {
   ReloadOutlined,
   DownloadOutlined,
   EditOutlined,
+  HomeOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -1149,6 +1156,11 @@ const editApp = () => {
   }
 }
 
+// 返回首页
+const goHome = () => {
+  router.push('/')
+}
+
 // 删除应用
 const deleteApp = async () => {
   if (!appInfo.value?.id) return
@@ -1206,10 +1218,17 @@ onUnmounted(() => {
 <style scoped>
 #appChatPage {
   height: 100vh;
+  width: 100vw;
   display: flex;
   flex-direction: column;
-  padding: 16px;
   background: #fdfdfd;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
 }
 
 /* 顶部栏 */
@@ -1218,6 +1237,10 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
+  background: white;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  z-index: 10;
 }
 
 .header-left {
@@ -1311,13 +1334,29 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+/* 返回首页按钮样式 */
+.home-btn {
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.home-btn:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #69c0ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}
+
 /* 主要内容区域 */
 .main-content {
   flex: 1;
   display: flex;
   gap: 16px;
-  padding: 8px;
+  padding: 16px;
   overflow: hidden;
+  min-height: 0;
+  max-height: calc(100vh - 80px); /* 减去顶部栏的高度 */
 }
 
 /* 左侧对话区域 */
@@ -1329,12 +1368,15 @@ onUnmounted(() => {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .messages-container {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
   /* 当没有权限时，让消息区域占用更多空间 */
   min-height: 0;
@@ -1415,6 +1457,8 @@ onUnmounted(() => {
 .input-container {
   padding: 16px;
   background: white;
+  border-top: 1px solid #e8e8e8;
+  flex-shrink: 0;
 }
 
 /* 选中元素信息 */
@@ -1430,6 +1474,8 @@ onUnmounted(() => {
 .permission-container {
   padding: 16px;
   background: white;
+  border-top: 1px solid #e8e8e8;
+  flex-shrink: 0;
 }
 
 .permission-alert {
@@ -1479,6 +1525,8 @@ onUnmounted(() => {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .preview-header {
@@ -1487,6 +1535,8 @@ onUnmounted(() => {
   align-items: center;
   padding: 16px;
   border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  background: white;
 }
 
 .preview-header h3 {
@@ -1504,6 +1554,7 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
 
 .preview-placeholder {
@@ -1543,18 +1594,22 @@ onUnmounted(() => {
 @media (max-width: 1024px) {
   .main-content {
     flex-direction: column;
+    padding: 8px;
+    max-height: calc(100vh - 70px);
   }
 
   .chat-section,
   .preview-section {
     flex: none;
-    height: 50vh;
+    height: calc(50vh - 35px);
+    min-height: 0;
+    max-height: calc(50vh - 35px);
   }
 }
 
 @media (max-width: 768px) {
   .header-bar {
-    padding: 12px 16px;
+    padding: 8px 12px;
   }
 
   .app-name {
@@ -1564,6 +1619,7 @@ onUnmounted(() => {
   .main-content {
     padding: 8px;
     gap: 8px;
+    max-height: calc(100vh - 60px);
   }
 
   .message-content {
