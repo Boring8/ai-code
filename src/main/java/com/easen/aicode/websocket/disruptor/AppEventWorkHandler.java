@@ -50,9 +50,6 @@ public class AppEventWorkHandler implements WorkHandler<AppEvent> {
             case AI_EDIT_ACTION:
                 appHandler.aiHandleEditActionMessage(appRequestMessage, session, user, appId);
                 break;
-//            case USER_EDIT_ACTION:
-//                appHandler.userHandleEditActionMessage(appRequestMessage, session, user, appId);
-//                break;
             default:
                 // 其他消息类型，返回错误提示
                 AppResponseMessage appResponseMessage = new AppResponseMessage();

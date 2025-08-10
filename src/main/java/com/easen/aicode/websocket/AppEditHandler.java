@@ -189,16 +189,17 @@ public class AppEditHandler extends TextWebSocketHandler {
      * @param appId
      */
     public void aiHandleEditActionMessage(AppRequestMessage appRequestMessage, WebSocketSession session, User user, Long appId) throws IOException {
-
-        AppResponseMessage appResponseMessage = new AppResponseMessage();
-        appResponseMessage.setType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
-        String message = String.format("AI 正在回答 %s", user.getUserName());
-        appResponseMessage.setMessage(message);
-        appResponseMessage.setEditAction(appRequestMessage.getEditAction());
-        appResponseMessage.setUser(userService.getUserVO(user));
-        // 广播给除了当前客户端之外的其他用户，否则会造成重复编辑
-        broadcastToApp(appId, appResponseMessage, session);
-
+        Long editingUserId = appDoingUsers.get(appId);
+        if (editingUserId != null && editingUserId.equals(user.getId())) {
+            AppResponseMessage appResponseMessage = new AppResponseMessage();
+            appResponseMessage.setType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
+            String message = String.format("AI 正在回答 %s", user.getUserName());
+            appResponseMessage.setMessage(message);
+            appResponseMessage.setEditAction(appRequestMessage.getEditAction());
+            appResponseMessage.setUser(userService.getUserVO(user));
+            // 广播给除了当前客户端之外的其他用户，否则会造成重复编辑
+            broadcastToApp(appId, appResponseMessage, session);
+        }
     }
 
     // 提取通用的会话广播逻辑
