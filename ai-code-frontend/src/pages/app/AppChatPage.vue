@@ -139,7 +139,22 @@
               :disabled="isGenerating"
             />
             <div class="input-actions">
+              <a-tooltip v-if="isTeamApp && (isOtherUserGenerating || !canEdit)" :title="isOtherUserGenerating ? `${otherGeneratingUser?.userName || '其他用户'} 正在生成中，请稍候...` : `${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
+                <a-button
+                  type="default"
+                  @click="toggleVisualEdit"
+                  :disabled="!previewUrl || isGenerating || (isTeamApp && (isOtherUserGenerating || !canEdit))"
+                  class="visual-edit-btn"
+                  :class="{ 'edit-mode-active': isVisualEditMode }"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                  {{ isVisualEditMode ? '退出编辑' : '可视编辑' }}
+                </a-button>
+              </a-tooltip>
               <a-button
+                v-else
                 type="default"
                 @click="toggleVisualEdit"
                 :disabled="!previewUrl || isGenerating"
@@ -243,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, onUnmounted, computed } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
@@ -1166,6 +1181,16 @@ onMounted(() => {
       isVisualEditMode.value = isEditMode
     }
   )
+})
+
+// 监听其他用户生成状态，自动退出可视编辑模式
+watch(isOtherUserGenerating, (newValue) => {
+  if (newValue && isVisualEditMode.value && isTeamApp.value) {
+    // 其他用户开始生成时，自动退出可视编辑模式
+    visualEditor.toggleEditMode()
+    selectedElement.value = null
+    message.info(`${otherGeneratingUser.value?.userName || '其他用户'} 开始生成，已自动退出可视编辑模式`)
+  }
 })
 
 // 清理资源

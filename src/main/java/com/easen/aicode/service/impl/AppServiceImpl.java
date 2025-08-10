@@ -7,8 +7,10 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.ai.AiCodeGenNameService;
 import com.easen.aicode.ai.AiCodeGenTypeRoutingService;
+import com.easen.aicode.common.DeleteRequest;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.core.AiCodeGeneratorFacade;
+import com.easen.aicode.core.AppResourceCleaner;
 import com.easen.aicode.core.builder.VueProjectBuilder;
 import com.easen.aicode.core.hander.StreamHandlerExecutor;
 import com.easen.aicode.exception.BusinessException;
@@ -72,6 +74,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private AppResourceCleaner appResourceCleaner;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
@@ -153,9 +158,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         // 9. 更新数据库
         App updateApp = new App();
-        if(app.getAppName() == null){
+        if (app.getAppName() == null) {
             // 生成名称
             String appName = aiCodeGenNameService.generateAppName(app.getInitPrompt());
+            ThrowUtils.throwIf(appName == null || appName.length() > 8, ErrorCode.SYSTEM_ERROR, "AI 生成的名称不符合规范");
             updateApp.setAppName(appName);
         }
         updateApp.setId(appId);
@@ -180,10 +186,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     public void generateAppScreenshotAsync(Long appId, String appUrl) {
         // 使用虚拟线程并执行
         Thread.startVirtualThread(() -> {
-
             // 调用截图服务生成截图并上传
             String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
-
             // 更新数据库的封面
             App updateApp = new App();
             updateApp.setId(appId);
@@ -196,21 +200,81 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private AiCodeGenNameService aiCodeGenNameService;
 
+    /**
+     * 创建新应用
+     * 
+     * @param appAddRequest 应用创建请求对象，包含应用的基本信息
+     * @param request HTTP请求对象，用于获取当前登录用户信息
+     * @return 新创建的应用ID
+     */
     @Override
     @Transactional
     public String addApp(AppAddRequest appAddRequest, HttpServletRequest request) {
+        // 1. 参数校验：检查请求对象是否为空
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
+        // 2. 参数校验：检查初始化提示词是否为空
         ThrowUtils.throwIf(StrUtil.isBlank(appAddRequest.getInitPrompt()), ErrorCode.PARAMS_ERROR, "初始化提示词不能为空");
+        
+        // 3. 获取当前登录用户信息
         User loginUser = userService.getLoginUser(request);
+        
+        // 4. 创建应用实体对象
         App app = new App();
+        // 5. 将请求对象属性复制到应用实体
         BeanUtil.copyProperties(appAddRequest, app);
+        // 6. 设置应用创建者ID
         app.setUserId(loginUser.getId());
+        
+        // 7. 使用AI智能路由服务，根据初始化提示词自动选择代码生成类型
         CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(app.getInitPrompt());
         app.setCodeGenType(selectedCodeGenType.getValue());
+        
+        // 8. 保存应用到数据库
         boolean result = this.save(app);
+        
+        // 9. 将创建者添加为应用团队成员（isCreate=1表示创建者）
         appUserService.inviteUserToApp(app.getId(), loginUser.getId(), 1);
+        
+        // 10. 检查保存操作是否成功
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        
+        // 11. 返回新创建的应用ID
         return String.valueOf(app.getId());
+    }
+
+    /**
+     * 删除应用及其相关数据
+     * 
+     * @param appId 要删除的应用ID
+     * @return 删除操作是否成功
+     */
+    @Override
+    @Transactional
+    public Boolean deleteApp(Long appId) {
+        // 1. 参数校验：检查应用ID是否有效
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
+        
+        // 2. 检查应用是否存在
+        App app = this.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        
+        // 3. 删除应用相关的聊天记录
+        boolean chatHistoryDeleted = chatHistoryService.deleteByAppId(appId);
+        log.info("删除应用 {} 的聊天记录，结果：{}", appId, chatHistoryDeleted);
+        
+        // 4. 删除应用团队成员关联关系
+        boolean teamMembersDeleted = appUserService.removeAllUsersFromApp(appId);
+        log.info("删除应用 {} 的团队成员，结果：{}", appId, teamMembersDeleted);
+        
+        // 5. 删除应用本身
+        boolean appDeleted = this.removeById(appId);
+        log.info("删除应用 {}，结果：{}", appId, appDeleted);
+        
+        // 6. 使用 AppResourceCleaner 异步清理应用相关的文件资源
+        appResourceCleaner.cleanupAppResourcesAsync(app);
+        
+        // 7. 返回删除操作结果
+        return appDeleted;
     }
 
     @Override

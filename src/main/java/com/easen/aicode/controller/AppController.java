@@ -188,7 +188,7 @@ public class AppController {
         ThrowUtils.throwIf(!appService.validateUserPermission(appId, loginUser.getId()), 
                 ErrorCode.NO_AUTH_ERROR, "无权限操作此应用");
         
-        boolean result = appService.removeById(appId);
+        boolean result = appService.deleteApp(appId);
         return ResultUtils.success(result);
     }
 
@@ -269,7 +269,7 @@ public class AppController {
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> deleteApp(@RequestBody DeleteRequest deleteRequest) {
         ThrowUtils.throwIf(deleteRequest == null || deleteRequest.getId() <= 0, ErrorCode.PARAMS_ERROR);
-        boolean result = appService.removeById(deleteRequest.getId());
+        boolean result = appService.deleteApp(deleteRequest.getId());
         return ResultUtils.success(result);
     }
 

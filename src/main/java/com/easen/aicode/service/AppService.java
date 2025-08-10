@@ -1,6 +1,7 @@
 package com.easen.aicode.service;
 
 import com.easen.aicode.common.BaseResponse;
+import com.easen.aicode.common.DeleteRequest;
 import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
@@ -50,7 +51,7 @@ public interface AppService extends IService<App> {
     /**
      * 验证用户是否有权限操作应用
      *
-     * @param appId 应用id
+     * @param appId  应用id
      * @param userId 用户id
      * @return 是否有权限
      */
@@ -59,7 +60,7 @@ public interface AppService extends IService<App> {
     /**
      * 验证用户是否为应用创建者
      *
-     * @param appId 应用id
+     * @param appId  应用id
      * @param userId 用户id
      * @return 是否为创建者
      */
@@ -68,8 +69,8 @@ public interface AppService extends IService<App> {
     /**
      * 应用聊天生成代码（流式 SSE）
      *
-     * @param appId   应用 ID
-     * @param message 用户消息
+     * @param appId     应用 ID
+     * @param message   用户消息
      * @param loginUser 请求对象
      * @return 生成结果流
      */
@@ -85,9 +86,16 @@ public interface AppService extends IService<App> {
 
     /**
      * 创建app
+     *
      * @param appAddRequest 应用ID
      * @param request
-     * @return
+     * @return appId
      */
     String addApp(AppAddRequest appAddRequest, HttpServletRequest request);
+
+    /** 删除 appId
+     * @param appId
+     * @return
+     */
+    Boolean deleteApp(Long appId);
 }

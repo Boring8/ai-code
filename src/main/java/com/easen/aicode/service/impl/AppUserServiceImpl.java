@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
  *
  * @author <a>easen</a>
  */
+@Slf4j
 @Service
 public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> implements AppUserService {
 
@@ -226,5 +228,23 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         Page<App> page = this.pageAs(new Page<>(pageNum, pageSize), queryWrapper, App.class);
 
         return page;
+    }
+
+    @Override
+    public boolean removeAllUsersFromApp(Long appId) {
+        // 参数校验
+        if (appId == null || appId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "应用ID无效");
+        }
+        
+        // 构建删除条件：删除指定应用的所有团队成员关联关系
+        QueryWrapper queryWrapper = new QueryWrapper();
+        queryWrapper.eq("appId", appId);
+        
+        // 执行删除操作
+        int deletedCount = this.mapper.deleteByQuery(queryWrapper);
+        log.info("删除应用 {} 的所有团队成员关联关系，删除数量：{}", appId, deletedCount);
+        
+        return deletedCount >= 0; // 删除成功或没有数据需要删除都返回true
     }
 }

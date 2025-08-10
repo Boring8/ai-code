@@ -82,4 +82,12 @@ public interface AppUserService extends IService<AppUser> {
      * @return 分页结果
      */
     Page<App> getUserTeamAppsByPage(Long userId, String appName, Integer pageNum, Integer pageSize);
+
+    /**
+     * 删除应用的所有团队成员关联关系
+     *
+     * @param appId 应用ID
+     * @return 是否成功
+     */
+    boolean removeAllUsersFromApp(Long appId);
 }

@@ -14,7 +14,7 @@ public class AiCodeGenNameServiceFactory {
     private ChatModel chatModel;
 
     /**
-     * 创建AI代码生成类型路由服务实例
+     * 创建AI代码生成app名称实例
      */
     @Bean
     public AiCodeGenNameService aiCodeGenNameService() {
