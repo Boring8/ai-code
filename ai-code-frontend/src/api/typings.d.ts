@@ -17,8 +17,6 @@ declare namespace API {
   }
 
   type AppAddRequest = {
-    appName?: string
-    cover?: string
     initPrompt?: string
   }
 
@@ -179,6 +177,10 @@ declare namespace API {
     message?: string
   }
 
+  type cancelCodeGenerationParams = {
+    appId: number
+  }
+
   type ChatHistoryQueryRequest = {
     pageNum?: number
     pageSize?: number
@@ -200,6 +202,7 @@ declare namespace API {
     userName?: string
     createTime?: string
     updateTime?: string
+    status?: number
   }
 
   type chatToGenCodeParams = {

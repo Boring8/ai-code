@@ -55,4 +55,12 @@ public interface AiCodeGeneratorService {
     @SystemMessage(fromResource = "prompt/codegen-vue-project-system-prompt.txt")
     TokenStream generateVueProjectCodeStream(@MemoryId long appId, @UserMessage String userMessage);
 
+    /**
+     * 取消正在进行的代码生成
+     *
+     * @param appId 应用ID
+     * @return 是否成功取消
+     */
+    boolean cancelGeneration(long appId);
+
 }

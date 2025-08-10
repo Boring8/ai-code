@@ -6,6 +6,8 @@ import com.easen.aicode.service.ChatHistoryService;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * 简单文本流处理器
  * 处理 HTML 和 MULTI_FILE 类型的流式响应
@@ -27,6 +29,9 @@ public class SimpleTextStreamHandler {
                                ChatHistoryService chatHistoryService,
                                long appId, User loginUser) {
         StringBuilder aiResponseBuilder = new StringBuilder();
+        // 用于跟踪流是否被中断
+        AtomicBoolean isInterrupted = new AtomicBoolean(false);
+
         return originFlux
                 .map(chunk -> {
                     // 收集AI响应内容
@@ -34,14 +39,15 @@ public class SimpleTextStreamHandler {
                     return chunk;
                 })
                 .doOnComplete(() -> {
-                    // 流式响应完成后，添加AI消息到对话历史
+                    // 流式响应正常完成，添加AI消息到对话历史
                     String aiResponse = aiResponseBuilder.toString();
-                    chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId());
+                    chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),0);
+                    log.info("流正常完成，保存完整AI响应到数据库: appId={}, userId={}, contentLength={}", appId, loginUser.getId(), aiResponse.length());
                 })
                 .doOnError(error -> {
-                    // 如果AI回复失败，也要记录错误消息
                     String errorMessage = "AI回复失败: " + error.getMessage();
-                    chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId());
+                    log.error("AI回复失败，保存错误信息到数据库: appId={}, userId={}, error={}", appId, loginUser.getId(), error.getMessage());
+                    chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),0);
                 });
     }
 }

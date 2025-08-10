@@ -57,4 +57,9 @@ public class ChatHistoryVO implements Serializable {
      * 更新时间
      */
     private LocalDateTime updateTime;
+
+    /**
+     * 消息状态 0正常 1手动中断 2 AI异常中断
+     */
+    private Integer status;
 }

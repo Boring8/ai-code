@@ -1,6 +1,5 @@
 package com.easen.aicode.controller;
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.easen.aicode.annotation.AuthCheck;
@@ -9,6 +8,7 @@ import com.easen.aicode.common.DeleteRequest;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.constant.UserConstant;
+import com.easen.aicode.core.AiCodeGeneratorFacade;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
@@ -55,6 +55,9 @@ public class AppController {
     @Autowired
     private UserService userService;
 
+    @Resource
+    private AiCodeGeneratorFacade aiCodeGeneratorFacade;
+
     /**
      * 应用聊天生成代码（流式 SSE）
      *
@@ -91,6 +94,32 @@ public class AppController {
                                 .data("")
                                 .build()
                 ));
+    }
+
+    /**
+     * 取消正在进行的代码生成
+     *
+     * @param appId   应用 ID
+     * @param request 请求对象
+     * @return 取消结果
+     */
+    @PostMapping("/chat/cancel/generation")
+    public BaseResponse<Boolean> cancelCodeGeneration(@RequestParam Long appId,
+                                                     HttpServletRequest request) {
+        // 参数校验
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
+        // 获取当前登录用户
+        User loginUser = userService.getLoginUser(request);
+
+        // 验证用户权限：只有正在生成代码的用户才能取消
+        Long taskUserId = aiCodeGeneratorFacade.getGenerationTaskManager().getTaskUserId(appId);
+
+        ThrowUtils.throwIf(taskUserId == null || !taskUserId.equals(loginUser.getId()), ErrorCode.NO_AUTH_ERROR, "只有正在生成代码的用户才能取消");
+
+        // 执行取消操作
+        boolean success = aiCodeGeneratorFacade.cancelGeneration(appId, loginUser.getId());
+
+        return ResultUtils.success(success);
     }
 
     /**

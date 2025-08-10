@@ -33,6 +33,10 @@
               </a-space>
               <template #overlay>
                 <a-menu class="user-dropdown">
+                  <a-menu-item @click="goToProfile" class="profile-item">
+                    <UserOutlined />
+                    个人信息
+                  </a-menu-item>
                   <a-menu-item @click="doLogout" class="logout-item">
                     <LogoutOutlined />
                     退出登录
@@ -54,9 +58,9 @@
 import { computed, h, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { type MenuProps, message } from 'ant-design-vue'
-import { useLoginUserStore } from '@/stores/loginUser.ts'
-import { userLogout } from '@/api/userController.ts'
-import { LogoutOutlined, HomeOutlined } from '@ant-design/icons-vue'
+import { useLoginUserStore } from '../stores/loginUser'
+import { userLogout } from '../api/userController'
+import { LogoutOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons-vue'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
@@ -113,6 +117,11 @@ const handleMenuClick: MenuProps['onClick'] = (e) => {
   if (key.startsWith('/')) {
     router.push(key)
   }
+}
+
+// 跳转到个人信息页面
+const goToProfile = () => {
+  router.push('/user/profile')
 }
 
 // 退出登录
@@ -225,6 +234,16 @@ const doLogout = async () => {
   border-radius: 8px;
   border: 1px solid #e8f4fd;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.profile-item {
+  border-radius: 6px;
+  margin: 4px;
+}
+
+.profile-item:hover {
+  background: rgba(24, 144, 255, 0.1);
+  color: #1890ff;
 }
 
 .logout-item {

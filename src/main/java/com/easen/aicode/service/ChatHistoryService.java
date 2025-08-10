@@ -25,9 +25,10 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @param message     消息
      * @param messageType 消息类型
      * @param userId      用户 id
+     * @param start      状态
      * @return 是否成功
      */
-    boolean addChatMessage(Long appId, String message, String messageType, Long userId);
+    boolean addChatMessage(Long appId, String message, String messageType, Long userId, Integer start);
 
     /**
      * 根据应用 id 删除对话历史
@@ -88,4 +89,14 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @return 对话历史分页
      */
     Page<ChatHistoryVO> listAllChatHistoryVOByPageForAdmin(ChatHistoryQueryRequest chatHistoryQueryRequest);
+
+    /**
+     * 更新聊天记录状态
+     *
+     * @param appId 应用ID
+     * @param userId 用户ID
+     * @param status 状态值
+     * @return 是否成功
+     */
+    boolean updateChatHistoryStatus(Long appId, Long userId, Integer status);
 }

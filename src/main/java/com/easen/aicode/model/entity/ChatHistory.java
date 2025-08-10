@@ -75,6 +75,11 @@ public class ChatHistory implements Serializable {
     private LocalDateTime updateTime;
 
     /**
+     * 消息状态 0正常 1手动中断 2 AI异常中断
+     */
+    private Integer status;
+
+    /**
      * 是否删除
      */
     @Column(value = "isDelete", isLogicDelete = true)

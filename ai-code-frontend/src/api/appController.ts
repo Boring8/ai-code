@@ -14,6 +14,21 @@ export async function addApp(body: API.AppAddRequest, options?: { [key: string]:
   })
 }
 
+/** 此处后端没有提供注释 POST /app/chat/cancel/generation */
+export async function cancelCodeGeneration(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.cancelCodeGenerationParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>('/app/chat/cancel/generation', {
+    method: 'POST',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  })
+}
+
 /** 此处后端没有提供注释 GET /app/chat/gen/code */
 export async function chatToGenCode(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)

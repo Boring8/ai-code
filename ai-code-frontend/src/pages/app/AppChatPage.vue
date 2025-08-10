@@ -101,8 +101,16 @@
                   <a-spin size="small" />
                   <span>AI 正在思考...</span>
                 </div>
-                <div v-if="message.userName" class="message-user ai-message-user">
-                  回复 {{ message.userName }}
+                <!-- 显示信息状态和用户名 -->
+                <div v-if="message.userName || (message.status && (message.status === 1 || message.status === 2))" class="message-footer">
+                  <div v-if="message.userName" class="message-user ai-message-user">
+                    回复 {{ message.userName }}
+                  </div>
+                  <div v-if="message.status && (message.status === 1 || message.status === 2)" class="message-status">
+                    <a-tag :color="message.status === 1 ? 'orange' : 'red'" size="small">
+                      {{ message.status === 1 ? '停止生成' : 'AI异常中断' }}
+                    </a-tag>
+                  </div>
                 </div>
               </div>
             </div>
@@ -132,7 +140,7 @@
                 :rows="4"
                 :maxlength="1000"
                 @keydown.enter.prevent="sendMessage"
-                :disabled="isGenerating || !canEdit"
+                :disabled="isGenerating || isCancelling || !canEdit"
               />
             </a-tooltip>
             <a-textarea
@@ -142,14 +150,14 @@
               :rows="4"
               :maxlength="1000"
               @keydown.enter.prevent="sendMessage"
-              :disabled="isGenerating"
+              :disabled="isGenerating || isCancelling"
             />
             <div class="input-actions">
               <a-tooltip v-if="isTeamApp && (isOtherUserGenerating || !canEdit)" :title="isOtherUserGenerating ? `${otherGeneratingUser?.userName || '其他用户'} 正在生成中，请稍候...` : `${currentEditingUser?.userName || '其他用户'} 正在对话中，请稍候...`" placement="top">
                 <a-button
                   type="default"
                   @click="toggleVisualEdit"
-                  :disabled="!previewUrl || isGenerating || (isTeamApp && (isOtherUserGenerating || !canEdit))"
+                  :disabled="!previewUrl || isGenerating || isCancelling || (isTeamApp && (isOtherUserGenerating || !canEdit))"
                   class="visual-edit-btn"
                   :class="{ 'edit-mode-active': isVisualEditMode }"
                 >
@@ -163,7 +171,7 @@
                 v-else
                 type="default"
                 @click="toggleVisualEdit"
-                :disabled="!previewUrl || isGenerating"
+                :disabled="!previewUrl || isGenerating || isCancelling"
                 class="visual-edit-btn"
                 :class="{ 'edit-mode-active': isVisualEditMode }"
               >
@@ -173,14 +181,26 @@
                 {{ isVisualEditMode ? '退出编辑' : '可视编辑' }}
               </a-button>
               <a-button
+                v-if="!isGenerating"
                 type="primary"
                 @click="sendMessage"
-                :loading="isGenerating"
                 :disabled="(isTeamApp && !canEdit)"
               >
                 <template #icon>
                   <SendOutlined />
                 </template>
+              </a-button>
+              <a-button
+                v-else
+                type="primary"
+                danger
+                @click="stopGeneration"
+                :loading="isCancelling"
+              >
+                <template #icon>
+                  <StopOutlined />
+                </template>
+                停止生成
               </a-button>
             </div>
           </div>
@@ -273,6 +293,7 @@ import {
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
   downloadAppCode,
+  cancelCodeGeneration,
 } from '@/api/appController'
 import {
   checkUserInApp,
@@ -298,6 +319,7 @@ import {
   DownloadOutlined,
   EditOutlined,
   HomeOutlined,
+  StopOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -337,12 +359,17 @@ interface Message {
   createTime?: string
   userName?: string
   userAvatar?: string
+  status?: number
 }
 
 const messages = ref<Message[]>([])
 const userInput = ref('')
 const isGenerating = ref(false)
 const messagesContainer = ref<HTMLElement>()
+
+// 停止生成相关
+let currentEventSource: EventSource | null = null
+const isCancelling = ref(false)
 
 // 对话历史相关
 const loadingHistory = ref(false)
@@ -696,6 +723,7 @@ const loadChatHistory = async (loadMore = false) => {
         content: msg.message || '',
         createTime: msg.createTime,
         userName: msg.userName,
+        status: msg.status,
       }))
 
       if (loadMore) {
@@ -857,7 +885,6 @@ ${selectedElement.value.outerHTML}
 
 // 生成代码 - 使用 EventSource 处理流式响应
 const generateCode = async (userMessage: string, aiMessageIndex: number) => {
-  let eventSource: EventSource | null = null
   let streamCompleted = false
 
   try {
@@ -873,7 +900,7 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     const url = `${baseURL}/app/chat/gen/code?${params}`
 
     // 创建 EventSource 连接
-    eventSource = new EventSource(url, {
+    currentEventSource = new EventSource(url, {
       withCredentials: true,
     })
 
@@ -882,7 +909,7 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
 
 
     // 处理接收到的消息
-    eventSource.onmessage = function (event) {
+    currentEventSource.onmessage = function (event) {
       if (streamCompleted) return
 
       try {
@@ -917,12 +944,13 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     }
 
     // 处理done事件
-    eventSource.addEventListener('done', function () {
+    currentEventSource.addEventListener('done', function () {
       if (streamCompleted) return
 
       streamCompleted = true
       isGenerating.value = false
-      eventSource?.close()
+      currentEventSource?.close()
+      currentEventSource = null
 
       // 只在团队应用中发送退出编辑状态消息
       if (isTeamApp.value) {
@@ -945,13 +973,14 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     })
 
     // 处理错误
-    eventSource.onerror = function () {
+    currentEventSource.onerror = function () {
       if (streamCompleted || !isGenerating.value) return
       // 检查是否是正常的连接关闭
-      if (eventSource?.readyState === EventSource.CONNECTING) {
+      if (currentEventSource?.readyState === EventSource.CONNECTING) {
         streamCompleted = true
         isGenerating.value = false
-        eventSource?.close()
+        currentEventSource?.close()
+        currentEventSource = null
 
         // 只在团队应用中发送退出编辑状态消息
         if (isTeamApp.value) {
@@ -980,6 +1009,70 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
   }
 }
 
+// 停止生成
+const stopGeneration = async () => {
+  if (!appId.value || !isGenerating.value) return
+
+  isCancelling.value = true
+  
+  try {
+    // 关闭当前的 EventSource 连接
+    if (currentEventSource) {
+      currentEventSource.close()
+      currentEventSource = null
+    }
+
+    // 调用后端取消生成接口
+    const res = await cancelCodeGeneration({
+      appId: getAppIdForApi(appId.value) as number
+    })
+
+    if (res.data.code === 0) {
+      message.success('已停止生成')
+      
+      // 更新最后一条AI消息，显示生成被停止
+      const lastMessage = messages.value[messages.value.length - 1]
+      if (lastMessage && lastMessage.type === 'ai') {
+        lastMessage.content += '\n\n[生成已停止]'
+        lastMessage.loading = false
+      }
+      // 只在团队应用中发送退出编辑状态消息
+      if (isTeamApp.value) {
+          sendWebSocketMessage({
+            type: 'USER_EXIT_EDIT',
+            user: {
+              id: loginUserStore.loginUser.id,
+              userName: loginUserStore.loginUser.userName,
+              userAvatar: loginUserStore.loginUser.userAvatar
+            },
+            editAction: ''
+          })
+        }
+    } else {
+      message.error('停止生成失败：' + res.data.message)
+    }
+  } catch (error) {
+    console.error('停止生成失败：', error)
+    message.error('停止生成失败，请重试')
+  } finally {
+    isGenerating.value = false
+    isCancelling.value = false
+    
+    // 只在团队应用中发送退出编辑状态消息
+    if (isTeamApp.value) {
+      sendWebSocketMessage({
+        type: 'USER_EXIT_EDIT',
+        user: {
+          id: loginUserStore.loginUser.id,
+          userName: loginUserStore.loginUser.userName,
+          userAvatar: loginUserStore.loginUser.userAvatar
+        },
+        editAction: ''
+      })
+    }
+  }
+}
+
 // 错误处理函数
 const handleError = (error: unknown, aiMessageIndex: number) => {
   console.error('生成代码失败：', error)
@@ -987,6 +1080,12 @@ const handleError = (error: unknown, aiMessageIndex: number) => {
   messages.value[aiMessageIndex].loading = false
   message.error('生成失败，请重试')
   isGenerating.value = false
+  
+  // 清理 EventSource
+  if (currentEventSource) {
+    currentEventSource.close()
+    currentEventSource = null
+  }
   
   // 只在团队应用中发送退出编辑状态消息
   if (isTeamApp.value) {
@@ -1211,7 +1310,11 @@ onUnmounted(() => {
   closeWebSocket()
   // 清理可视化编辑器
   visualEditor.destroy()
-  // EventSource 会在组件卸载时自动清理
+  // 清理 EventSource 连接
+  if (currentEventSource) {
+    currentEventSource.close()
+    currentEventSource = null
+  }
 })
 </script>
 
@@ -1453,6 +1556,25 @@ onUnmounted(() => {
   color: #666;
 }
 
+.message-footer {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message-status {
+  display: flex;
+  align-items: center;
+}
+
+.message-status .ant-tag {
+  margin: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 /* 输入区域 */
 .input-container {
   padding: 16px;
@@ -1512,6 +1634,20 @@ onUnmounted(() => {
 .visual-edit-btn.edit-mode-active:hover {
   background-color: #40a9ff;
   border-color: #40a9ff;
+}
+
+/* 停止生成按钮 */
+.input-actions .ant-btn-danger {
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3);
+  transition: all 0.3s ease;
+}
+
+.input-actions .ant-btn-danger:hover {
+  background: linear-gradient(135deg, #ff7875 0%, #ffa39e 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
 }
 
 
