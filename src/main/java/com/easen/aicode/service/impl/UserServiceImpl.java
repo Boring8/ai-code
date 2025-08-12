@@ -3,8 +3,10 @@ package com.easen.aicode.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
+import com.easen.aicode.manager.auth.StpKit;
 import com.easen.aicode.model.enums.UserRoleEnum;
 import com.easen.aicode.model.dto.user.UserQueryRequest;
 import com.easen.aicode.model.entity.User;
@@ -100,6 +102,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         }
         // 3. 记录用户的登录态
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        // 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
+        StpKit.TEAM.login(user.getId());
+        StpKit.TEAM.getSession().set(UserConstant.USER_LOGIN_STATE, user);
+
         // 4. 获得脱敏后的用户信息
         return this.getLoginUserVO(user);
     }
@@ -175,6 +181,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
                 .like("userName", userName)
                 .like("userProfile", userProfile)
                 .orderBy(sortField, "ascend".equals(sortOrder));
+    }
+
+    @Override
+    public boolean isAdmin(User user) {
+        if (user == null) {
+            return false;
+        }
+        return UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
+    }
+
+    @Override
+    public User getUserByUserAccount(String userAccount) {
+        if (StrUtil.isBlank(userAccount)) {
+            return null;
+        }
+        QueryWrapper queryWrapper = new QueryWrapper();
+        queryWrapper.eq("userAccount", userAccount);
+        return this.getOne(queryWrapper);
     }
 
 }

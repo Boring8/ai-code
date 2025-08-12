@@ -9,7 +9,7 @@
     >
       <template #extra>
         <a-button 
-          v-if="isCreator" 
+          v-if="canManage" 
           type="primary" 
           @click="showInviteModal = true"
           :loading="inviteLoading"
@@ -39,8 +39,10 @@
                 <template #title>
                   <div class="member-info">
                     <span class="member-name">{{ item.userName }}</span>
-                    <a-tag v-if="item.isCreate" color="red">创建者</a-tag>
-                    <a-tag v-else color="blue">成员</a-tag>
+                    
+                    <a-tag :color="getRoleColor(getAppRole(item.appRole))">
+                      {{ getAppRole(item.appRole) }}
+                    </a-tag>
                   </div>
                 </template>
                 <template #description>
@@ -53,7 +55,7 @@
               </a-list-item-meta>
               <template #actions>
                 <a-button 
-                  v-if="isCreator && !item.isCreate" 
+                  v-if="canManage && !item.isCreate" 
                   type="link" 
                   danger
                   @click="handleRemoveMember(item)"
@@ -71,8 +73,10 @@
 
     <!-- 非团队应用提示 -->
     <a-card v-else class="team-info-card" title="团队信息">
-      <a-empty description="这是一个个人应用，不包含团队管理功能" />
+      <a-empty description="这是个人应用，不包含团队管理功能" />
     </a-card>
+
+
 
     <!-- 邀请成员模态框 -->
          <a-modal
@@ -99,7 +103,7 @@
            <a-form-item label="搜索用户" required>
             <a-input-search
               v-model:value="searchKeyword"
-              placeholder="输入用户ID或用户名搜索"
+              placeholder="输入用户ID或用户账号搜索"
               @search="searchUsers"
               :loading="searchLoading"
               enter-button
@@ -170,13 +174,27 @@ import {
   inviteUserToApp, 
   removeUserFromApp 
 } from '../api/appUserController'
-import { listUserVoByPage } from '../api/userController'
+import { getUserVoById } from '../api/userController'
 import { useLoginUserStore } from '../stores/loginUser'
+import { 
+  getRoleDisplayName, 
+  getRoleColor
+} from '../utils/permissionUtils'
+import { useTeamPermissions } from '../utils/usePermissions'
+import type { 
+  AppVO, 
+  AppTeamMemberVO, 
+  UserVO 
+} from '../types/api'
+
+
+
 
 // 定义 props
 interface Props {
-  appInfo: API.AppVO
+  appInfo: AppVO
   appId: number
+  canManage?: boolean
 }
 
 const props = defineProps<Props>()
@@ -191,7 +209,15 @@ const removeLoading = ref<number | undefined>(undefined)
 const searchLoading = ref(false)
 
 // 团队成员
-const teamMembers = ref<API.AppTeamMemberVO[]>([])
+const teamMembers = ref<AppTeamMemberVO[]>([])
+
+// 权限检查
+const { canManageUsers, isCreator } = useTeamPermissions(props.appInfo, teamMembers.value)
+
+// 权限检查函数
+const canManage = computed(() => {
+  return canManageUsers.value || props.canManage
+})
 const pagination = reactive({
   current: 1,
   pageSize: 10,
@@ -208,19 +234,25 @@ const pagination = reactive({
 // 邀请相关
 const showInviteModal = ref(false)
 const searchKeyword = ref('')
-const searchResults = ref<API.UserVO[]>([])
+const searchResults = ref<UserVO[]>([])
 const inviteForm = reactive({
   userId: null as number | null
 })
 
 // 移除相关
 const showRemoveModal = ref(false)
-const selectedMember = ref<API.AppTeamMemberVO | null>(null)
+const selectedMember = ref<AppTeamMemberVO | null>(null)
 
-// 计算属性
-const isCreator = computed(() => {
-  return props.appInfo.userId === loginUserStore.loginUser.id
-})
+
+
+// 根据用户角色判断用户角色
+const getAppRole = (appRole?: string) => {
+  if (!appRole) {
+    return '成员'
+  }
+  
+  return getRoleDisplayName(appRole)
+}
 
 // 获取团队成员
 const fetchTeamMembers = async () => {
@@ -232,6 +264,7 @@ const fetchTeamMembers = async () => {
     if (res.data.code === 0 && res.data.data) {
       teamMembers.value = res.data.data
       pagination.total = res.data.data.length
+      
     } else {
       message.error(res.data.message || '获取团队成员失败')
     }
@@ -246,37 +279,44 @@ const fetchTeamMembers = async () => {
 // 搜索用户
 const searchUsers = async () => {
   if (!searchKeyword.value.trim()) {
-    message.warning('请输入搜索关键词')
+    message.warning('请输入用户ID或用户账号')
     return
   }
   
   searchLoading.value = true
   try {
-    const res = await listUserVoByPage({
-      pageNum: 1,
-      pageSize: 20,
-      userName: searchKeyword.value,
-      userAccount: searchKeyword.value
-    })
+    // 判断输入是数字还是字符串
+    const userId = parseInt(searchKeyword.value)
+    const isNumeric = !isNaN(userId)
+    
+    let params: { id?: number; userAccount?: string }
+    if (isNumeric) {
+      // 如果是数字，按ID搜索
+      params = { id: userId }
+    } else {
+      // 如果是字符串，按用户账号搜索
+      params = { userAccount: searchKeyword.value.trim() }
+    }
+    
+    const res = await getUserVoById(params)
     
     if (res.data.code === 0 && res.data.data) {
-      searchResults.value = res.data.data.records || []
-      if (searchResults.value.length === 0) {
-        message.info('未找到相关用户')
-      }
+      searchResults.value = [res.data.data]
     } else {
-      message.error(res.data.message || '搜索用户失败')
+      searchResults.value = []
+      message.info('未找到相关用户')
     }
   } catch (error) {
     console.error('搜索用户失败：', error)
     message.error('搜索用户失败')
+    searchResults.value = []
   } finally {
     searchLoading.value = false
   }
 }
 
 // 选择用户
-const selectUser = (user: API.UserVO) => {
+const selectUser = (user: UserVO) => {
   inviteForm.userId = user.id || null
   message.success(`已选择用户: ${user.userName}`)
 }
@@ -289,6 +329,13 @@ const isUserInTeam = (userId: number | undefined) => {
 // 邀请成员
 const handleInviteMember = async () => {
   console.log('开始邀请成员，当前表单数据:', inviteForm)
+  
+  // 检查权限
+  if (!canManage.value) {
+    message.error('您没有邀请成员的权限')
+    return
+  }
+  
   if (!inviteForm.userId) {
     message.warning('请先选择要邀请的用户')
     return
@@ -330,6 +377,12 @@ const handleRemoveMember = (member: API.AppTeamMemberVO) => {
 // 确认移除成员
 const confirmRemoveMember = async () => {
   if (!selectedMember.value) return
+  
+  // 检查权限
+  if (!canManage.value) {
+    message.error('您没有移除成员的权限')
+    return
+  }
   
   const userId = selectedMember.value.userId
   removeLoading.value = userId || undefined
@@ -422,10 +475,16 @@ onMounted(() => {
 
 .member-account,
 .member-join-time,
-.member-profile {
+.member-profile,
+.member-permissions {
   margin: 4px 0;
   color: #666;
   font-size: 14px;
+}
+
+.member-permissions {
+  color: #1890ff;
+  font-style: italic;
 }
 
 .invite-form {

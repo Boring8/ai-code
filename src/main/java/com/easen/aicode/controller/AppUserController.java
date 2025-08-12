@@ -4,6 +4,9 @@ import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
+import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
+import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
+import com.easen.aicode.model.dto.app.AppTeamCreateRequest;
 import com.easen.aicode.model.dto.app.AppTeamInviteRequest;
 import com.easen.aicode.model.dto.app.AppTeamMemberQueryRequest;
 import com.easen.aicode.model.dto.app.AppTeamQueryRequest;
@@ -22,9 +25,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
 @Slf4j
 @RestController
-@RequestMapping("/team")
+@RequestMapping("/appUser")
 public class AppUserController {
 
     @Autowired
@@ -35,30 +39,39 @@ public class AppUserController {
 
     @Autowired
     private AppService appService;
+
+    /**
+     * 创建应用团队
+     *
+     * @param appTeamCreateRequest 创建团队请求
+     * @return 创建结果
+     */
+    @PostMapping("/create")
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_USER_MANAGE)
+    public BaseResponse<Boolean> createAppTeam(@RequestBody AppTeamCreateRequest appTeamCreateRequest) {
+        ThrowUtils.throwIf(appTeamCreateRequest == null, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(appTeamCreateRequest.getAppId() == null || appTeamCreateRequest.getUserId() == null,
+                ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
+
+        // 执行创建团队
+        boolean result = appUserService.createAppTeam(appTeamCreateRequest.getAppId(), appTeamCreateRequest.getUserId());
+        return ResultUtils.success(result);
+    }
+
     /**
      * 邀请用户加入应用团队
      *
      * @param appTeamInviteRequest 邀请请求
-     * @param request              请求对象
      * @return 邀请结果
      */
     @PostMapping("/invite")
-    public BaseResponse<Boolean> inviteUserToApp(@RequestBody AppTeamInviteRequest appTeamInviteRequest,
-                                                 HttpServletRequest request) {
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_USER_MANAGE)
+    public BaseResponse<Boolean> inviteUserToApp(@RequestBody AppTeamInviteRequest appTeamInviteRequest) {
         ThrowUtils.throwIf(appTeamInviteRequest == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(appTeamInviteRequest.getAppId() == null || appTeamInviteRequest.getUserId() == null,
                 ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
-
-        // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
-        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
-
-        // 验证当前用户是否为应用创建者
-        boolean isCreator = appService.isAppCreator(appTeamInviteRequest.getAppId(), loginUser.getId());
-        ThrowUtils.throwIf(!isCreator, ErrorCode.NO_AUTH_ERROR, "只有应用创建者可以邀请用户");
-
         // 执行邀请
-        boolean result = appUserService.inviteUserToApp(appTeamInviteRequest.getAppId(), appTeamInviteRequest.getUserId(),0);
+        boolean result = appUserService.inviteUserToApp(appTeamInviteRequest.getAppId(), appTeamInviteRequest.getUserId());
         return ResultUtils.success(result);
     }
 
@@ -66,23 +79,14 @@ public class AppUserController {
      * 从应用团队中移除用户
      *
      * @param appTeamRemoveRequest 移除请求
-     * @param request              请求对象
      * @return 移除结果
      */
     @PostMapping("/remove")
-    public BaseResponse<Boolean> removeUserFromApp(@RequestBody AppTeamRemoveRequest appTeamRemoveRequest,
-                                                   HttpServletRequest request) {
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_USER_MANAGE)
+    public BaseResponse<Boolean> removeUserFromApp(@RequestBody AppTeamRemoveRequest appTeamRemoveRequest) {
         ThrowUtils.throwIf(appTeamRemoveRequest == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(appTeamRemoveRequest.getAppId() == null || appTeamRemoveRequest.getUserId() == null,
                 ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
-
-        // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
-        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
-
-        // 验证当前用户是否为应用创建者
-        boolean isCreator = appService.isAppCreator(appTeamRemoveRequest.getAppId(), loginUser.getId());
-        ThrowUtils.throwIf(!isCreator, ErrorCode.NO_AUTH_ERROR, "只有应用创建者可以移除用户");
 
         // 执行移除
         boolean result = appUserService.removeUserFromApp(appTeamRemoveRequest.getAppId(), appTeamRemoveRequest.getUserId());
@@ -95,11 +99,13 @@ public class AppUserController {
      * @param appId 应用ID
      * @return 团队成员列表
      */
-    @GetMapping("/team/members")
-    public BaseResponse<List<AppTeamMemberVO>> getAppTeamMembers(@RequestParam Long appId) {
-        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
+    @GetMapping("/members")
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_USER_MANAGE)
+    public BaseResponse<List<AppTeamMemberVO>> getAppTeamMembers(@RequestParam String appId) {
+        ThrowUtils.throwIf(appId == null , ErrorCode.PARAMS_ERROR, "应用ID无效");
 
-        List<AppTeamMemberVO> members = appUserService.getAppTeamMembers(appId);
+        List<AppTeamMemberVO> members = appUserService.getAppTeamMembers(Long.valueOf(appId));
+
         return ResultUtils.success(members);
     }
 
@@ -110,6 +116,7 @@ public class AppUserController {
      * @return 分页结果
      */
     @PostMapping("/members/page")
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_USER_MANAGE)
     public BaseResponse<Page<AppTeamMemberVO>> getAppTeamMembersByPage(@RequestBody AppTeamMemberQueryRequest appTeamMemberQueryRequest) {
         ThrowUtils.throwIf(appTeamMemberQueryRequest == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(appTeamMemberQueryRequest.getAppId() == null, ErrorCode.PARAMS_ERROR, "应用ID不能为空");
@@ -123,20 +130,6 @@ public class AppUserController {
         return ResultUtils.success(page);
     }
 
-    /**
-     * 检查用户是否为应用团队成员
-     *
-     * @param appId  应用ID
-     * @param userId 用户ID
-     * @return 是否为团队成员
-     */
-    @GetMapping("/check")
-    public BaseResponse<Boolean> checkUserInApp(@RequestParam Long appId, @RequestParam Long userId) {
-        ThrowUtils.throwIf(appId == null || userId == null, ErrorCode.PARAMS_ERROR, "应用ID和用户ID不能为空");
-
-        boolean isMember = appUserService.isUserInApp(appId, userId);
-        return ResultUtils.success(isMember);
-    }
 
     /**
      * 分页查询自己有参与的团队应用列表（支持根据名称查询，每页最多 20 个）

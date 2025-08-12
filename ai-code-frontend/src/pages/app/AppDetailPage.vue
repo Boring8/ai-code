@@ -31,7 +31,7 @@
                      cancel-text="取消"
                    >
                      <a-button 
-                       v-if="!appInfo.isTeam && isOwner" 
+                       v-if="!appInfo.isTeam && checkManagePermission()" 
                        type="primary" 
                        size="small"
                        :loading="converting"
@@ -50,7 +50,19 @@
         <TeamManagement 
           :app-info="appInfo" 
           :app-id="appId" 
+          :can-manage="checkManagePermission()"
         />
+        
+        <!-- 权限提示 -->
+        <a-card v-if="!checkManagePermission() && appInfo.isTeam" class="permission-card" title="权限提示">
+          <a-alert 
+            message="您没有团队管理权限" 
+            description="您需要具有管理员权限才能管理团队成员。请联系应用创建者为您分配相应权限。"
+            type="warning" 
+            show-icon 
+            banner
+          />
+        </a-card>
       </div>
     </a-spin>
 
@@ -64,7 +76,9 @@ import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { getAppById, updateMyApp } from '../../api/appController'
+import { createAppTeam } from '../../api/appUserController'
 import { useLoginUserStore } from '../../stores/loginUser'
+import { canManageAppUsers, hasPermission, PERMISSIONS } from '../../utils/permissionUtils'
 import TeamManagement from '../../components/TeamManagement.vue'
 
 // 路由参数
@@ -85,6 +99,31 @@ const appInfo = ref<API.AppVO>({})
 const isOwner = computed(() => {
   return appInfo.value.userId === loginUserStore.loginUser.id
 })
+
+// 权限检查函数
+const checkManagePermission = () => {
+  if (!appInfo.value) return false
+  
+  // 创建者自动为管理员，拥有所有权限
+  if (isOwner.value) {
+    return true
+  }
+  
+  const userPermissions = appInfo.value.permissionList || []
+  return canManageAppUsers(userPermissions)
+}
+
+const checkUpdatePermission = () => {
+  if (!appInfo.value) return false
+  
+  // 创建者自动为管理员，拥有所有权限
+  if (isOwner.value) {
+    return true
+  }
+  
+  const userPermissions = appInfo.value.permissionList || []
+  return hasPermission(userPermissions, PERMISSIONS.APP_UPDATE)
+}
 
 
 
@@ -112,11 +151,17 @@ const fetchAppInfo = async () => {
 const convertToTeamApp = async () => {
   if (!appInfo.value.id) return
   
+  // 检查权限
+  if (!checkManagePermission()) {
+    message.error('您没有转换为团队应用的权限')
+    return
+  }
+  
   converting.value = true
   try {
-    const res = await updateMyApp({
-      id: appInfo.value.id,
-      isTeam: 1
+    const res = await createAppTeam({
+      appId: appInfo.value.id.toString(),
+      userId: loginUserStore.loginUser.id.toString(),
     })
     
     if (res.data.code === 0) {
@@ -207,6 +252,12 @@ onMounted(() => {
   color: #666;
   line-height: 1.6;
   max-width: 600px;
+}
+
+.permission-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* 移动端适配 */

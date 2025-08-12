@@ -68,4 +68,20 @@ public interface UserService extends IService<User> {
     public List<UserVO> getUserVOList(List<User> userList);
 
     public QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest);
+
+    /**
+     * 判断用户是否为管理员
+     *
+     * @param user 用户对象
+     * @return 是否为管理员
+     */
+    boolean isAdmin(User user);
+
+    /**
+     * 根据用户账号查询用户
+     *
+     * @param userAccount 用户账号
+     * @return 用户对象
+     */
+    User getUserByUserAccount(String userAccount);
 }

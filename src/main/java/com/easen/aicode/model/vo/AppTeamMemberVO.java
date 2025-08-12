@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 应用团队成员信息视图对象
@@ -50,10 +51,9 @@ public class AppTeamMemberVO implements Serializable {
      * 加入时间
      */
     private LocalDateTime joinTime;
-    /**
-     * 是否为创建者（0否1是）
-     */
-    private Integer isCreate;
+
+    private String appRole;
+
 
     private static final long serialVersionUID = 1L;
 } 

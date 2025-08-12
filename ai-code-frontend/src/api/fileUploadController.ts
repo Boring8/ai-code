@@ -18,11 +18,11 @@ export async function deleteImage(
 }
 
 /** 此处后端没有提供注释 POST /file/upload/image */
-export async function uploadImage(body: FormData, options?: { [key: string]: any }) {
+export async function uploadImage(body: {}, options?: { [key: string]: any }) {
   return request<API.BaseResponseString>('/file/upload/image', {
     method: 'POST',
     headers: {
-      'Content-Type': 'multipart/form-data',
+      'Content-Type': 'application/json',
     },
     data: body,
     ...(options || {}),

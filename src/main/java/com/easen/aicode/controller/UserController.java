@@ -1,6 +1,7 @@
 package com.easen.aicode.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.annotation.AuthCheck;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.DeleteRequest;
@@ -9,6 +10,8 @@ import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
+import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
+import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
 import com.easen.aicode.model.dto.user.*;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.LoginUserVO;
@@ -49,6 +52,7 @@ public class UserController {
         long result = userService.userRegister(userAccount, userPassword, checkPassword);
         return ResultUtils.success(result);
     }
+
     @PostMapping("/login")
     public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(userLoginRequest == null, ErrorCode.PARAMS_ERROR);
@@ -57,11 +61,13 @@ public class UserController {
         LoginUserVO loginUserVO = userService.userLogin(userAccount, userPassword, request);
         return ResultUtils.success(loginUserVO);
     }
+
     @GetMapping("/get/login")
     public BaseResponse<LoginUserVO> getLoginUser(HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         return ResultUtils.success(userService.getLoginUserVO(loginUser));
     }
+
     @PostMapping("/logout")
     public BaseResponse<Boolean> userLogout(HttpServletRequest request) {
         ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
@@ -100,12 +106,32 @@ public class UserController {
     }
 
     /**
-     * 根据 id 获取包装类
+     * 根据 id 或账号获取包装类(团队管理)
      */
     @GetMapping("/get/vo")
-    public BaseResponse<UserVO> getUserVOById(long id) {
-        BaseResponse<User> response = getUserById(id);
-        User user = response.getData();
+    public BaseResponse<UserVO> getUserVOById(@RequestParam(required = false) Long id,
+                                              @RequestParam(required = false) String userAccount) {
+        // 参数校验：id 和 userAccount 至少提供一个
+        if (id == null && StrUtil.isBlank(userAccount)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请提供用户ID或用户账号");
+        }
+
+        User user = null;
+
+        // 优先使用ID查询
+        if (id != null && id > 0) {
+            user = userService.getById(id);
+        }
+
+        // 如果ID查询失败或未提供ID，则使用账号查询
+        if (user == null && StrUtil.isNotBlank(userAccount)) {
+            user = userService.getUserByUserAccount(userAccount);
+        }
+
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+
         return ResultUtils.success(userService.getUserVO(user));
     }
 

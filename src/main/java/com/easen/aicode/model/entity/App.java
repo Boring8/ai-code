@@ -109,6 +109,12 @@ public class App implements Serializable {
     private Integer isDelete;
     
     /**
+     * 是否为公开应用(0否，1是)
+     */
+    @Column("isPublic")
+    private Integer isPublic;
+
+    /**
      * 是否为团队应用(0否，1是)
      */
     @Column("isTeam")

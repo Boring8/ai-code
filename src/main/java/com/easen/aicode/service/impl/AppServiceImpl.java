@@ -209,7 +209,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
      * @return 新创建的应用ID
      */
     @Override
-    @Transactional
     public String addApp(AppAddRequest appAddRequest, HttpServletRequest request) {
         // 1. 参数校验：检查请求对象是否为空
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
@@ -232,10 +231,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         
         // 8. 保存应用到数据库
         boolean result = this.save(app);
-        
-        // 9. 将创建者添加为应用团队成员（isCreate=1表示创建者）
-        appUserService.inviteUserToApp(app.getId(), loginUser.getId(), 1);
-        
+
         // 10. 检查保存操作是否成功
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         
@@ -335,11 +331,13 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         Integer priority = appQueryRequest.getPriority();
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
+        Integer isPublic = appQueryRequest.getIsPublic();
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("id", id)
                 .eq("codeGenType", codeGenType)
                 .eq("userId", userId)
                 .eq("priority", priority)
+                .eq("isPublic", isPublic)
                 .like("appName", appName);
 
         // 排序

@@ -12,12 +12,17 @@ import com.easen.aicode.core.AiCodeGeneratorFacade;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
+import com.easen.aicode.manager.auth.AppUserAuthManager;
+import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
+import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
 import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppDeployRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.dto.app.AppUpdateRequest;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.User;
+import com.easen.aicode.model.enums.AppRoleEnum;
+import com.easen.aicode.model.enums.AppTypeEnum;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.AppService;
 import com.easen.aicode.service.ProjectDownloadService;
@@ -67,6 +72,7 @@ public class AppController {
      * @return 生成结果流
      */
     @GetMapping(value = "/chat/gen/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_EDIT)
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message,
                                                        HttpServletRequest request) {
@@ -130,9 +136,10 @@ public class AppController {
      * @return 部署 URL
      */
     @PostMapping("/deploy")
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_DEPLOY)
     public BaseResponse<String> deployApp(@RequestBody AppDeployRequest appDeployRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appDeployRequest == null, ErrorCode.PARAMS_ERROR);
-        Long appId = appDeployRequest.getAppId();
+        Long appId = Long.valueOf(appDeployRequest.getAppId());
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 不能为空");
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
@@ -150,7 +157,6 @@ public class AppController {
      */
     @PostMapping("/add")
     public BaseResponse<String> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
-
         String appId = appService.addApp(appAddRequest,request);
         return ResultUtils.success(appId);
     }
@@ -160,42 +166,26 @@ public class AppController {
      * 注意：只有应用创始人才能修改 isTeam 字段
      *
      * @param appUpdateRequest 应用更新请求
-     * @param request          HTTP请求
+
      * @return 更新结果
      */
     @PostMapping("/update/my")
-    public BaseResponse<Boolean> updateMyApp(@RequestBody AppUpdateRequest appUpdateRequest, HttpServletRequest request) {
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_UPDATE)
+    public BaseResponse<Boolean> updateMyApp(@RequestBody AppUpdateRequest appUpdateRequest ){
         ThrowUtils.throwIf(appUpdateRequest == null || appUpdateRequest.getId() == null, ErrorCode.PARAMS_ERROR);
-        
         // 验证应用名称长度不超过10个字
         String appName = appUpdateRequest.getAppName();
         if (StrUtil.isNotBlank(appName)) {
             ThrowUtils.throwIf(appName.length() > 10, ErrorCode.PARAMS_ERROR, "应用名称不能超过10个字");
         }
-        
-        User loginUser = userService.getLoginUser(request);
-        Long appId = appUpdateRequest.getId();
-        
-        // 验证权限,创建者
-        ThrowUtils.throwIf(!appService.validateUserPermission(appId, loginUser.getId()), 
-                ErrorCode.NO_AUTH_ERROR, "无权限操作此应用");
-
-        // 检查是否要修改 isTeam 字段
-        if (appUpdateRequest.getIsTeam() != null) {
-            // 只有应用创始人才能修改 isTeam 字段
-            ThrowUtils.throwIf(!appService.isAppCreator(appId, loginUser.getId()),
-                    ErrorCode.NO_AUTH_ERROR, "只有应用创始人才能修改团队属性");
-        }
-
+        Long appId = Long.valueOf(appUpdateRequest.getId());
         App app = new App();
         app.setId(appId);
         app.setAppName(appUpdateRequest.getAppName());
-        app.setIsTeam(appUpdateRequest.getIsTeam());
+        app.setIsPublic(appUpdateRequest.getIsPublic());
         app.setEditTime(LocalDateTime.now());
-        
         boolean result = appService.updateById(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        
         return ResultUtils.success(true);
     }
 
@@ -203,24 +193,19 @@ public class AppController {
      * 根据 id 删除自己的应用
      *
      * @param deleteRequest 删除请求
-     * @param request       HTTP请求
      * @return 删除结果
      */
     @PostMapping("/delete/my")
-    public BaseResponse<Boolean> deleteMyApp(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
-        ThrowUtils.throwIf(deleteRequest == null || deleteRequest.getId() <= 0, ErrorCode.PARAMS_ERROR);
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_DELETE)
+    public BaseResponse<Boolean> deleteMyApp(@RequestBody DeleteRequest deleteRequest) {
+        ThrowUtils.throwIf(deleteRequest == null,  ErrorCode.PARAMS_ERROR);
         
-        User loginUser = userService.getLoginUser(request);
-        Long appId = deleteRequest.getId();
-        
-        // 验证权限
-        ThrowUtils.throwIf(!appService.validateUserPermission(appId, loginUser.getId()), 
-                ErrorCode.NO_AUTH_ERROR, "无权限操作此应用");
-        
-        boolean result = appService.deleteApp(appId);
+        boolean result = appService.deleteApp(Long.valueOf(deleteRequest.getId()));
         return ResultUtils.success(result);
     }
 
+    @Resource
+    private AppUserAuthManager appUserAuthManager;
     /**
      * 根据 id 查看应用详情
      *
@@ -228,11 +213,16 @@ public class AppController {
      * @return 应用详情
      */
     @GetMapping("/get")
-    public BaseResponse<AppVO> getAppById(long id) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
+    public BaseResponse<AppVO> getAppById(String id,HttpServletRequest request) {
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
-        return ResultUtils.success(appService.getAppVO(app));
+
+        User loginUser = userService.getLoginUser(request);
+        AppVO appVO = appService.getAppVO(app);
+        List<String> permissionList = appUserAuthManager.getPermissionList(app, loginUser);
+        appVO.setPermissionList(permissionList);
+        return ResultUtils.success(appVO);
     }
 
     /**
@@ -252,7 +242,6 @@ public class AppController {
         // 限制每页最多20个
         Integer pageSize = Math.min(appQueryRequest.getPageSize(), 20);
         appQueryRequest.setPageSize(pageSize);
-        
         long pageNum = appQueryRequest.getPageNum();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
@@ -272,12 +261,11 @@ public class AppController {
     @PostMapping("/list/featured")
     public BaseResponse<Page<AppVO>> listFeaturedAppByPage(@RequestBody AppQueryRequest appQueryRequest) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
-
-        
         // 限制每页最多20个
         Integer pageSize = Math.min(appQueryRequest.getPageSize(), 20);
         appQueryRequest.setPageSize(pageSize);
-        
+        appQueryRequest.setPriority(99);
+        appQueryRequest.setIsPublic(AppTypeEnum.PUBLIC.getValue());
         long pageNum = appQueryRequest.getPageNum();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
@@ -311,29 +299,18 @@ public class AppController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updateApp(@RequestBody AppUpdateRequest appUpdateRequest, HttpServletRequest request) {
+    public BaseResponse<Boolean> updateApp(@RequestBody AppUpdateRequest appUpdateRequest) {
         ThrowUtils.throwIf(appUpdateRequest == null || appUpdateRequest.getId() == null, ErrorCode.PARAMS_ERROR);
-
         // 验证应用名称长度不超过10个字
         String appName = appUpdateRequest.getAppName();
         if (StrUtil.isNotBlank(appName)) {
             ThrowUtils.throwIf(appName.length() > 10, ErrorCode.PARAMS_ERROR, "应用名称不能超过10个字");
         }
-
-        User loginUser = userService.getLoginUser(request);
         Long appId = appUpdateRequest.getId();
-
-
-        // 检查是否要修改 isTeam 字段
-        if (appUpdateRequest.getIsTeam() != null) {
-            // 只有应用创始人才能修改 isTeam 字段
-            ThrowUtils.throwIf(!appService.isAppCreator(appId, loginUser.getId()),
-                    ErrorCode.NO_AUTH_ERROR, "只有应用创始人才能修改团队属性");
-        }
         App app = new App();
         app.setId(appId);
         app.setAppName(appUpdateRequest.getAppName());
-        app.setIsTeam(appUpdateRequest.getIsTeam());
+        app.setIsPublic(appUpdateRequest.getIsPublic());
         app.setEditTime(LocalDateTime.now());
         app.setPriority(appUpdateRequest.getPriority());
         boolean result = appService.updateById(app);
@@ -375,6 +352,9 @@ public class AppController {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
+        AppVO appVO = appService.getAppVO(app);
+        List<String> permissionList = appUserAuthManager.getPermissionsByRole(AppRoleEnum.ADMIN.getValue());
+        appVO.setPermissionList(permissionList);
         return ResultUtils.success(app);
     }
 
@@ -386,23 +366,18 @@ public class AppController {
      * 下载应用代码
      *
      * @param appId    应用ID
-     * @param request  请求
      * @param response 响应
      */
     @GetMapping("/download/{appId}")
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_UPLOAD)
     public void downloadAppCode(@PathVariable Long appId,
-                                HttpServletRequest request,
                                 HttpServletResponse response) {
         // 1. 基础校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
         // 2. 查询应用信息
         App app = appService.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        // 3. 权限校验：只有应用创建者可以下载代码
-        User loginUser = userService.getLoginUser(request);
-        if (!app.getUserId().equals(loginUser.getId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限下载该应用代码");
-        }
+
         // 4. 构建应用代码目录路径（生成目录，非部署目录）
         String codeGenType = app.getCodeGenType();
         String sourceDirName = codeGenType + "_" + appId;

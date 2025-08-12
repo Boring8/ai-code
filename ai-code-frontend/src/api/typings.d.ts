@@ -13,6 +13,7 @@ declare namespace API {
     createTime?: string
     updateTime?: string
     isDelete?: number
+    isPublic?: number
     isTeam?: number
   }
 
@@ -29,13 +30,18 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: number
+    id?: string
     appName?: string
     codeGenType?: string
     userId?: number
     priority?: number
     initPrompt?: string
     isTeam?: number
+  }
+
+  type AppTeamCreateRequest = {
+    appId?: string
+    userId?: string
   }
 
   type AppTeamInviteRequest = {
@@ -59,7 +65,7 @@ declare namespace API {
     userProfile?: string
     userRole?: string
     joinTime?: string
-    isCreate?: number
+    appRole?: string
   }
 
   type AppTeamQueryRequest = {
@@ -81,7 +87,7 @@ declare namespace API {
     appName?: string
     cover?: string
     priority?: number
-    isTeam?: number
+    isPublic?: number
   }
 
   type AppVO = {
@@ -95,8 +101,10 @@ declare namespace API {
     userId?: number
     isTeam?: number
     initPrompt?: string
+    isPublic?: number
     createTime?: string
     updateTime?: string
+    permissionList?: string[]
   }
 
   type BaseResponseApp = {
@@ -216,11 +224,6 @@ declare namespace API {
     message: string
   }
 
-  type checkUserInAppParams = {
-    appId: number
-    userId: number
-  }
-
   type deleteImageParams = {
     imageUrl: string
   }
@@ -238,11 +241,11 @@ declare namespace API {
   }
 
   type getAppByIdParams = {
-    id: number
+    id: string
   }
 
   type getAppTeamMembersParams = {
-    appId: number
+    appId: string
   }
 
   type getUserByIdParams = {
@@ -250,7 +253,8 @@ declare namespace API {
   }
 
   type getUserVOByIdParams = {
-    id: number
+    id?: number
+    userAccount?: string
   }
 
   type listAppChatHistoryParams = {

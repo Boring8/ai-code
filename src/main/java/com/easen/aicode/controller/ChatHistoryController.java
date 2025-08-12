@@ -5,6 +5,8 @@ import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.UserConstant;
 
+import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
+import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
 import com.easen.aicode.model.dto.ChatHistoryQueryRequest;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.ChatHistoryVO;
@@ -14,6 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import jakarta.annotation.Resource;
 import com.easen.aicode.service.UserService;
+
 import java.time.LocalDateTime;
 
 /**
@@ -37,16 +40,15 @@ public class ChatHistoryController {
      * @param appId          应用ID
      * @param pageSize       页面大小
      * @param lastCreateTime 最后一条记录的创建时间
-     * @param request        请求
      * @return 对话历史分页
      */
-    @GetMapping("/app/{appId}")
-    public BaseResponse<Page<ChatHistoryVO>> listAppChatHistory(@PathVariable Long appId,
-                                                              @RequestParam(defaultValue = "10") int pageSize,
-                                                              @RequestParam(required = false) LocalDateTime lastCreateTime,
-                                                              HttpServletRequest request) {
-        User loginUser = userService.getLoginUser(request);
-        Page<ChatHistoryVO> result = chatHistoryService.listAppChatHistoryVOByPage(appId, pageSize, lastCreateTime, loginUser);
+    @GetMapping("/app")
+    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
+    public BaseResponse<Page<ChatHistoryVO>> listAppChatHistory(@RequestParam Long appId,
+                                                                @RequestParam(defaultValue = "10") int pageSize,
+                                                                @RequestParam(required = false) LocalDateTime lastCreateTime
+    ) {
+        Page<ChatHistoryVO> result = chatHistoryService.listAppChatHistoryVOByPage(appId, pageSize, lastCreateTime);
         return ResultUtils.success(result);
     }
 

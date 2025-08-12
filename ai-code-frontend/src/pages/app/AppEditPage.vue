@@ -48,6 +48,15 @@
             />
           </a-form-item>
 
+          <a-form-item v-if="isAdmin || isOwner" label="公开状态" name="isPublic">
+            <a-switch
+              v-model:checked="formData.isPublic"
+              checked-children="公开"
+              un-checked-children="私有"
+            />
+            <div class="form-tip">公开的应用可以被其他用户查看和使用</div>
+          </a-form-item>
+
           <a-form-item label="初始提示词" name="initPrompt">
             <a-textarea
               v-model:value="formData.initPrompt"
@@ -131,6 +140,11 @@
             </a-button>
             <span v-else>未部署</span>
           </a-descriptions-item>
+          <a-descriptions-item label="公开状态">
+            <a-tag :color="appInfo?.isPublic ? 'green' : 'orange'">
+              {{ appInfo?.isPublic ? '公开' : '私有' }}
+            </a-tag>
+          </a-descriptions-item>
         </a-descriptions>
       </a-card>
     </div>
@@ -143,6 +157,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '../../stores/loginUser'
 import { getAppById, updateApp, updateMyApp } from '../../api/appController'
+import { createAppTeam } from '../../api/appUserController'
 import { formatCodeGenType } from '../../utils/codeGenTypes'
 import { formatTime } from '../../utils/time'
 import { getStaticPreviewUrl } from '../../config/env'
@@ -164,6 +179,7 @@ const formData = reactive({
   appName: '',
   cover: '',
   priority: 0,
+  isPublic: false,
   initPrompt: '',
   codeGenType: '',
   deployKey: '',
@@ -216,6 +232,7 @@ const fetchAppInfo = async () => {
       formData.appName = current.appName || ''
       formData.cover = current.cover || ''
       formData.priority = current.priority || 0
+      formData.isPublic = Boolean(current.isPublic)
       formData.initPrompt = current.initPrompt || ''
       formData.codeGenType = current.codeGenType || ''
       formData.deployKey = current.deployKey || ''
@@ -246,6 +263,14 @@ const handleSubmit = async () => {
         appName: formData.appName,
         cover: formData.cover,
         priority: formData.priority,
+        isPublic: formData.isPublic ? 1 : 0,
+      })
+    } else if (isOwner.value) {
+      // 应用创建者可以修改应用名称和公开状态
+      res = await updateMyApp({
+        id: appInfo.value.id,
+        appName: formData.appName,
+        isPublic: formData.isPublic ? 1 : 0,
       })
     } else {
       // 普通用户只能修改应用名称
@@ -276,6 +301,7 @@ const resetForm = () => {
     formData.appName = appInfo.value.appName || ''
     formData.cover = appInfo.value.cover || ''
     formData.priority = appInfo.value.priority || 0
+    formData.isPublic = Boolean(appInfo.value.isPublic)
   }
   formRef.value?.clearValidate()
 }
@@ -300,9 +326,9 @@ const convertToTeamApp = async () => {
 
   converting.value = true
   try {
-    const res = await updateMyApp({
-      id: appInfo.value.id,
-      isTeam: 1,
+    const res = await createAppTeam({
+      appId: appInfo.value.id,
+      userId: loginUserStore.loginUser.id,
     })
     if (res.data.code === 0) {
       message.success('应用已成功转换为团队应用')

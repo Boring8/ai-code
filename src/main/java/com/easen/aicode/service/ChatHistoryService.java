@@ -25,7 +25,7 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @param message     消息
      * @param messageType 消息类型
      * @param userId      用户 id
-     * @param start      状态
+     * @param start       状态
      * @return 是否成功
      */
     boolean addChatMessage(Long appId, String message, String messageType, Long userId, Integer start);
@@ -44,12 +44,10 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @param appId
      * @param pageSize
      * @param lastCreateTime
-     * @param loginUser
      * @return
      */
     Page<ChatHistory> listAppChatHistoryByPage(Long appId, int pageSize,
-                                               LocalDateTime lastCreateTime,
-                                               User loginUser);
+                                               LocalDateTime lastCreateTime);
 
     /**
      * 分页查询某 APP 的对话记录（返回VO）
@@ -57,19 +55,17 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @param appId
      * @param pageSize
      * @param lastCreateTime
-     * @param loginUser
      * @return
      */
     Page<ChatHistoryVO> listAppChatHistoryVOByPage(Long appId, int pageSize,
-                                                   LocalDateTime lastCreateTime,
-                                                   User loginUser);
+                                                   LocalDateTime lastCreateTime);
 
     /**
      * 加载对话历史到内存
      *
      * @param appId
      * @param chatMemory
-     * @param maxCount 最多加载多少条
+     * @param maxCount   最多加载多少条
      * @return 加载成功的条数
      */
     int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory chatMemory, int maxCount);
@@ -93,7 +89,7 @@ public interface ChatHistoryService extends IService<ChatHistory> {
     /**
      * 更新聊天记录状态
      *
-     * @param appId 应用ID
+     * @param appId  应用ID
      * @param userId 用户ID
      * @param status 状态值
      * @return 是否成功

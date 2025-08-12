@@ -1,0 +1,74 @@
+{
+  "permissions": [
+    {
+      "key": "appUser:manage",
+      "name": "成员管理",
+      "description": "管理app成员，添加或移除成员"
+    },
+    {
+      "key": "app:view",
+      "name": "查看app",
+      "description": "查看app内容"
+    },
+    {
+      "key": "app:download",
+      "name": "下载代码",
+      "description": "下载代码到本地"
+    },
+    {
+      "key": "app:edit",
+      "name": "生成app",
+      "description": "ai修改应用"
+    },
+    {
+      "key": "app:update",
+      "name": "编辑app",
+      "description": "修改app信息应用"
+    },
+    {
+      "key": "app:delete",
+      "name": "删除app",
+      "description": "删除app"
+    },
+    {
+      "key": "app:deploy",
+      "name": "部署app",
+      "description": "部署app"
+    }
+  ],
+  "roles": [
+    {
+      "key": "viewer",
+      "name": "浏览者",
+      "permissions": [
+        "app:view",
+        "app:download"
+      ],
+      "description": "查看或下载应用"
+    },
+    {
+      "key": "editor",
+      "name": "编辑者",
+      "permissions": [
+        "app:view",
+        "app:download",
+        "app:edit"
+      ],
+      "description": "查看应用、编辑app、下载应用"
+    },
+    {
+      "key": "admin",
+      "name": "管理员",
+      "permissions": [
+        "appUser:manage",
+        "app:view",
+        "app:download",
+        "app:edit",
+        "app:delete",
+        "app:update",
+        "app:deploy"
+      ],
+      "description": "成员管理、查看应用、下载应用、修改应用、删除应用，生成应用"
+    }
+  ]
+}

@@ -63,6 +63,10 @@ public class AppUser implements Serializable {
     @Column("updateTime")
     private LocalDateTime updateTime;
 
-    @Column("isCreate")
-    private Integer isCreate;
+    /**
+     * app角色：viewer/editor/admin
+     */
+    @Column("appRole")
+    private String appRole;
+
 }

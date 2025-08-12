@@ -43,13 +43,13 @@
             </template>
             应用详情
           </a-button>
-          <a-button type="default" @click="downloadCode" :loading="downloading" :disabled="!appInfo?.id">
+          <a-button type="default" @click="downloadCode" :loading="downloading" :disabled="!appInfo?.id || !checkDownloadPermission()">
             <template #icon>
               <DownloadOutlined />
             </template>
             下载代码
           </a-button>
-          <a-button type="primary" @click="deployApp" :loading="deploying">
+          <a-button type="primary" @click="deployApp" :loading="deploying" :disabled="!appInfo?.id || !checkDeployPermission()">
             <template #icon>
               <CloudUploadOutlined />
             </template>
@@ -252,7 +252,7 @@
           <div class="permission-alert">
             <a-alert 
               message="您没有对话权限" 
-              description="请联系应用创建者邀请您加入团队，或者您需要成为应用的所有者才能进行对话。"
+              description="您需要具有编辑者或管理员权限才能进行对话。请联系应用创建者为您分配相应权限。"
               type="warning" 
               show-icon 
               banner
@@ -310,7 +310,7 @@
     <AppDetailModal
       v-model:open="appDetailVisible"
       :app="appInfo"
-      :show-actions="isOwner || isAdmin"
+      :show-actions="isOwner || isAdmin || checkManagePermission()"
       @edit="editApp"
       @delete="deleteApp"
     />
@@ -337,9 +337,8 @@ import {
   downloadAppCode,
   cancelCodeGeneration,
 } from '@/api/appController'
-import {
-  checkUserInApp,
-} from '@/api/appUserController'
+
+import { canEditApp, hasPermission, PERMISSIONS } from '../../utils/permissionUtils'
 import { listAppChatHistory } from '../../api/chatHistoryController'
 import { CodeGenTypeEnum, formatCodeGenType } from '@/utils/codeGenTypes'
 import request from '@/request'
@@ -693,26 +692,64 @@ const handleUploadEnd = () => {
   uploading.value = false
 }
 
-// 检查用户对话权限
-const checkChatPermission = async () => {
-  if (!appId.value) return false
+// 检查用户对话权限 - 基于权限列表
+const checkChatPermission = () => {
 
-  try {
-    const res = await checkUserInApp({
-      appId: getAppIdForApi(appId.value) as number,
-      userId: loginUserStore.loginUser.id
-    })
-    
-    if (res.data.code === 0) {
-      return res.data.data || false
-    } else {
-      console.error('检查用户权限失败：', res.data.message)
-      return false
-    }
-  } catch (error) {
-    console.error('检查用户权限失败：', error)
-    return false
+  
+  if (!appInfo.value) return false
+  
+  // 获取用户权限列表
+  const userPermissions = appInfo.value.permissionList || []
+  
+  // 创建者自动为管理员，拥有所有权限
+  if (isOwner.value) {
+    return true
   }
+
+  
+  // 检查是否有对话权限（app:edit）
+  return canEditApp(userPermissions)
+}
+
+// 检查用户下载权限
+const checkDownloadPermission = () => {
+  if (!appInfo.value) return false
+  
+  // 创建者自动为管理员，拥有所有权限
+  if (isOwner.value) {
+    return true
+  }
+  
+  const userPermissions = appInfo.value.permissionList || []
+  return hasPermission(userPermissions, PERMISSIONS.APP_DOWNLOAD)
+}
+
+// 检查用户部署权限
+const checkDeployPermission = () => {
+  if (!appInfo.value) return false
+  
+  // 创建者自动为管理员，拥有所有权限
+  if (isOwner.value) {
+    return true
+  }
+  
+  const userPermissions = appInfo.value.permissionList || []
+
+  
+  return hasPermission(userPermissions, PERMISSIONS.APP_DEPLOY)
+}
+
+// 检查用户管理权限
+const checkManagePermission = () => {
+  if (!appInfo.value) return false
+  
+  // 创建者自动为管理员，拥有所有权限
+  if (isOwner.value) {
+    return true
+  }
+  
+  const userPermissions = appInfo.value.permissionList || []
+  return hasPermission(userPermissions, PERMISSIONS.APP_USER_MANAGE)
 }
 
 // 获取应用信息
@@ -732,8 +769,9 @@ const fetchAppInfo = async () => {
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
 
-      // 检查用户对话权限
-      hasChatPermission.value = await checkChatPermission()
+      // 检查用户对话权限 - 基于权限列表
+      hasChatPermission.value = checkChatPermission()
+
 
       // 加载对话历史
       await loadChatHistory()
@@ -1196,10 +1234,18 @@ const scrollToBottom = () => {
 
 // 部署应用
 const deployApp = async () => {
+  // 检查部署权限
+  if (!checkDeployPermission()) {
+    message.error('您没有部署应用的权限')
+    return
+  }
+
   if (!appId.value) {
     message.error('应用ID不存在')
     return
   }
+
+
 
   deploying.value = true
   try {
@@ -1227,6 +1273,12 @@ const deployApp = async () => {
 const downloadCode = async () => {
   if (!appId.value) {
     message.error('应用ID不存在')
+    return
+  }
+
+  // 检查下载权限
+  if (!checkDownloadPermission()) {
+    message.error('您没有下载代码的权限')
     return
   }
 

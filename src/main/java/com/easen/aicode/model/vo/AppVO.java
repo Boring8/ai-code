@@ -6,6 +6,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 应用视图（脱敏）
@@ -62,7 +64,16 @@ public class AppVO implements Serializable {
      */
     private Integer isTeam;
 
+    /**
+     * 提示词
+     */
     private String initPrompt;
+
+    /**
+     * 是否为公开应用(0否，1是)
+     */
+    private Integer isPublic;
+
     /**
      * 创建时间
      */
@@ -72,6 +83,11 @@ public class AppVO implements Serializable {
      * 更新时间
      */
     private LocalDateTime updateTime;
+
+    /**
+     * 权限列表
+     */
+    private List<String> permissionList = new ArrayList<>();
 
     private static final long serialVersionUID = 1L;
 } 
