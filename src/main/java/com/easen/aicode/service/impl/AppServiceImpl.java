@@ -16,6 +16,7 @@ import com.easen.aicode.core.hander.StreamHandlerExecutor;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
+import com.easen.aicode.langgraph4j.CodeGenConcurrentWorkflow;
 import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
@@ -79,7 +80,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private AppResourceCleaner appResourceCleaner;
 
     @Override
-    public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
+    public Flux<String> chatToGenCode(Long appId, String message, User loginUser, boolean agent) {
         // 1. 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 不能为空");
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
@@ -98,11 +99,18 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
-        log.info("chatToGenCode AI回复:  appId:{}",appId);
+        log.info("chatToGenCode AI回复:  appId:{}", appId);
         // 5. 在调用 AI 前，先保存用户消息到数据库中
-        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(),0);
+        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), 0);
         // 6. 调用 AI 生成代码（流式）
-        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId, loginUser.getId());
+        Flux<String> codeStream;
+        if (agent){
+            //会员
+            codeStream = new CodeGenConcurrentWorkflow().executeWorkflowWithFlux(message, appId, loginUser.getId());
+        }else {
+            //普通
+            codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId, loginUser.getId());
+        }
         // 7. 收集 AI 响应的内容，并且在完成后保存记录到对话历史
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
 
@@ -203,9 +211,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     /**
      * 创建新应用
-     * 
+     *
      * @param appAddRequest 应用创建请求对象，包含应用的基本信息
-     * @param request HTTP请求对象，用于获取当前登录用户信息
+     * @param request       HTTP请求对象，用于获取当前登录用户信息
      * @return 新创建的应用ID
      */
     @Override
@@ -214,34 +222,34 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
         // 2. 参数校验：检查初始化提示词是否为空
         ThrowUtils.throwIf(StrUtil.isBlank(appAddRequest.getInitPrompt()), ErrorCode.PARAMS_ERROR, "初始化提示词不能为空");
-        
+
         // 3. 获取当前登录用户信息
         User loginUser = userService.getLoginUser(request);
-        
+
         // 4. 创建应用实体对象
         App app = new App();
         // 5. 将请求对象属性复制到应用实体
         BeanUtil.copyProperties(appAddRequest, app);
         // 6. 设置应用创建者ID
         app.setUserId(loginUser.getId());
-        
+
         // 7. 使用AI智能路由服务，根据初始化提示词自动选择代码生成类型
         CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(app.getInitPrompt());
         app.setCodeGenType(selectedCodeGenType.getValue());
-        
+
         // 8. 保存应用到数据库
         boolean result = this.save(app);
 
         // 10. 检查保存操作是否成功
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        
+
         // 11. 返回新创建的应用ID
         return String.valueOf(app.getId());
     }
 
     /**
      * 删除应用及其相关数据
-     * 
+     *
      * @param appId 要删除的应用ID
      * @return 删除操作是否成功
      */
@@ -250,26 +258,26 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     public Boolean deleteApp(Long appId) {
         // 1. 参数校验：检查应用ID是否有效
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
-        
+
         // 2. 检查应用是否存在
         App app = this.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        
+
         // 3. 删除应用相关的聊天记录
         boolean chatHistoryDeleted = chatHistoryService.deleteByAppId(appId);
         log.info("删除应用 {} 的聊天记录，结果：{}", appId, chatHistoryDeleted);
-        
+
         // 4. 删除应用团队成员关联关系
         boolean teamMembersDeleted = appUserService.removeAllUsersFromApp(appId);
         log.info("删除应用 {} 的团队成员，结果：{}", appId, teamMembersDeleted);
-        
+
         // 5. 删除应用本身
         boolean appDeleted = this.removeById(appId);
         log.info("删除应用 {}，结果：{}", appId, appDeleted);
-        
+
         // 6. 使用 AppResourceCleaner 异步清理应用相关的文件资源
         appResourceCleaner.cleanupAppResourcesAsync(app);
-        
+
         // 7. 返回删除操作结果
         return appDeleted;
     }

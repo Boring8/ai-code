@@ -31,6 +31,7 @@ import static org.bsc.langgraph4j.action.AsyncEdgeAction.edge_async;
  * 并发执行的代码生成工作流
  */
 @Slf4j
+
 public class CodeGenConcurrentWorkflow {
 
     /**
@@ -91,45 +92,6 @@ public class CodeGenConcurrentWorkflow {
     }
 
     /**
-     * 执行并发工作流
-     */
-    public WorkflowContext executeWorkflow(String originalPrompt) {
-        CompiledGraph<MessagesState<String>> workflow = createWorkflow();
-        WorkflowContext initialContext = WorkflowContext.builder()
-                .originalPrompt(originalPrompt)
-                .currentStep("初始化")
-                .build();
-        GraphRepresentation graph = workflow.getGraph(GraphRepresentation.Type.MERMAID);
-        log.info("并发工作流图:\n{}", graph.content());
-        log.info("开始执行并发代码生成工作流");
-        WorkflowContext finalContext = null;
-        int stepCounter = 1;
-        // 配置并发执行
-        ExecutorService pool = ExecutorBuilder.create()
-                .setCorePoolSize(10)
-                .setMaxPoolSize(20)
-                .setWorkQueue(new LinkedBlockingQueue<>(100))
-                .setThreadFactory(ThreadFactoryBuilder.create().setNamePrefix("Parallel-Image-Collect").build())
-                .build();
-        RunnableConfig runnableConfig = RunnableConfig.builder()
-                .addParallelNodeExecutor("image_plan", pool)
-                .build();
-        for (NodeOutput<MessagesState<String>> step : workflow.stream(
-                Map.of(WorkflowContext.WORKFLOW_CONTEXT_KEY, initialContext),
-                runnableConfig)) {
-            log.info("--- 第 {} 步完成 ---", stepCounter);
-            WorkflowContext currentContext = WorkflowContext.getContext(step.state());
-            if (currentContext != null) {
-                finalContext = currentContext;
-                log.info("当前步骤上下文: {}", currentContext);
-            }
-            stepCounter++;
-        }
-        log.info("并发代码生成工作流执行完成！");
-        return finalContext;
-    }
-
-    /**
      * 路由函数：根据质检结果决定下一步
      */
     private String routeAfterQualityCheck(MessagesState<String> state) {
@@ -151,12 +113,14 @@ public class CodeGenConcurrentWorkflow {
     /**
      * 执行工作流（Flux 流式输出版本）
      */
-    public Flux<String> executeWorkflowWithFlux(String originalPrompt) {
+    public Flux<String> executeWorkflowWithFlux(String originalPrompt,Long appId,Long userId) {
         return Flux.create(sink -> {
             Thread.startVirtualThread(() -> {
                 try {
                     CompiledGraph<MessagesState<String>> workflow = createWorkflow();
                     WorkflowContext initialContext = WorkflowContext.builder()
+                            .appId(appId)
+                            .userId(userId)
                             .originalPrompt(originalPrompt)
                             .currentStep("初始化")
                             .build();
@@ -211,5 +175,44 @@ public class CodeGenConcurrentWorkflow {
         }
     }
 
+
+    /**
+     * 执行并发工作流
+     */
+    public WorkflowContext executeWorkflow(String originalPrompt) {
+        CompiledGraph<MessagesState<String>> workflow = createWorkflow();
+        WorkflowContext initialContext = WorkflowContext.builder()
+                .originalPrompt(originalPrompt)
+                .currentStep("初始化")
+                .build();
+        GraphRepresentation graph = workflow.getGraph(GraphRepresentation.Type.MERMAID);
+        log.info("并发工作流图:\n{}", graph.content());
+        log.info("开始执行并发代码生成工作流");
+        WorkflowContext finalContext = null;
+        int stepCounter = 1;
+        // 配置并发执行
+        ExecutorService pool = ExecutorBuilder.create()
+                .setCorePoolSize(10)
+                .setMaxPoolSize(20)
+                .setWorkQueue(new LinkedBlockingQueue<>(100))
+                .setThreadFactory(ThreadFactoryBuilder.create().setNamePrefix("Parallel-Image-Collect").build())
+                .build();
+        RunnableConfig runnableConfig = RunnableConfig.builder()
+                .addParallelNodeExecutor("image_plan", pool)
+                .build();
+        for (NodeOutput<MessagesState<String>> step : workflow.stream(
+                Map.of(WorkflowContext.WORKFLOW_CONTEXT_KEY, initialContext),
+                runnableConfig)) {
+            log.info("--- 第 {} 步完成 ---", stepCounter);
+            WorkflowContext currentContext = WorkflowContext.getContext(step.state());
+            if (currentContext != null) {
+                finalContext = currentContext;
+                log.info("当前步骤上下文: {}", currentContext);
+            }
+            stepCounter++;
+        }
+        log.info("并发代码生成工作流执行完成！");
+        return finalContext;
+    }
 
 }

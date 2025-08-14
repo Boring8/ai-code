@@ -22,6 +22,7 @@ import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.AppRoleEnum;
 import com.easen.aicode.model.enums.AppTypeEnum;
+import com.easen.aicode.model.enums.UserRoleEnum;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.AppService;
 import com.easen.aicode.service.ProjectDownloadService;
@@ -80,8 +81,8 @@ public class AppController {
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
-        // 调用服务生成代码（流式）
-        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser);
+        //如果是会员调用工作流生成代码
+        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser, loginUser.getUserRole().equals(UserRoleEnum.MEMBER.getValue()));
         // 转换为 ServerSentEvent 格式
         return contentFlux
                 .map(chunk -> {
@@ -110,7 +111,7 @@ public class AppController {
      */
     @PostMapping("/chat/cancel/generation")
     public BaseResponse<Boolean> cancelCodeGeneration(@RequestParam Long appId,
-                                                     HttpServletRequest request) {
+                                                      HttpServletRequest request) {
         // 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
         // 获取当前登录用户
@@ -156,7 +157,7 @@ public class AppController {
      */
     @PostMapping("/add")
     public BaseResponse<String> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
-        String appId = appService.addApp(appAddRequest,request);
+        String appId = appService.addApp(appAddRequest, request);
         return ResultUtils.success(appId);
     }
 
@@ -165,12 +166,11 @@ public class AppController {
      * 注意：只有应用创始人才能修改 isTeam 字段
      *
      * @param appUpdateRequest 应用更新请求
-
      * @return 更新结果
      */
     @PostMapping("/update/my")
     @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_UPDATE)
-    public BaseResponse<Boolean> updateMyApp(@RequestBody AppUpdateRequest appUpdateRequest ){
+    public BaseResponse<Boolean> updateMyApp(@RequestBody AppUpdateRequest appUpdateRequest) {
         ThrowUtils.throwIf(appUpdateRequest == null || appUpdateRequest.getId() == null, ErrorCode.PARAMS_ERROR);
         // 验证应用名称长度不超过10个字
         String appName = appUpdateRequest.getAppName();
@@ -197,14 +197,15 @@ public class AppController {
     @PostMapping("/delete/my")
     @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_DELETE)
     public BaseResponse<Boolean> deleteMyApp(@RequestBody DeleteRequest deleteRequest) {
-        ThrowUtils.throwIf(deleteRequest == null,  ErrorCode.PARAMS_ERROR);
-        
+        ThrowUtils.throwIf(deleteRequest == null, ErrorCode.PARAMS_ERROR);
+
         boolean result = appService.deleteApp(Long.valueOf(deleteRequest.getId()));
         return ResultUtils.success(result);
     }
 
     @Resource
     private AppUserAuthManager appUserAuthManager;
+
     /**
      * 根据 id 查看应用详情
      *
@@ -213,7 +214,7 @@ public class AppController {
      */
     @GetMapping("/get")
     @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
-    public BaseResponse<AppVO> getAppById(String id,HttpServletRequest request) {
+    public BaseResponse<AppVO> getAppById(String id, HttpServletRequest request) {
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
 
@@ -234,17 +235,17 @@ public class AppController {
     @PostMapping("/list/my")
     public BaseResponse<Page<AppVO>> listMyAppByPage(@RequestBody AppQueryRequest appQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        
+
         User loginUser = userService.getLoginUser(request);
         appQueryRequest.setUserId(loginUser.getId());
-        
+
         // 限制每页最多20个
         Integer pageSize = Math.min(appQueryRequest.getPageSize(), 20);
         appQueryRequest.setPageSize(pageSize);
         long pageNum = appQueryRequest.getPageNum();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
-        
+
         Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
         List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
         appVOPage.setRecords(appVOList);
@@ -268,7 +269,7 @@ public class AppController {
         long pageNum = appQueryRequest.getPageNum();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
-        
+
         Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
         List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
         appVOPage.setRecords(appVOList);
@@ -327,12 +328,12 @@ public class AppController {
     @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<AppVO>> listAppByPage(@RequestBody AppQueryRequest appQueryRequest) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        
+
         long pageNum = appQueryRequest.getPageNum();
         long pageSize = appQueryRequest.getPageSize();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
-        
+
         Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
         List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
         appVOPage.setRecords(appVOList);
