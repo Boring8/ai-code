@@ -1,8 +1,9 @@
 package com.easen.aicode.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
-import com.easen.aicode.annotation.AuthCheck;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.DeleteRequest;
 import com.easen.aicode.common.ResultUtils;
@@ -10,8 +11,6 @@ import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
-import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
-import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
 import com.easen.aicode.model.dto.user.*;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.LoginUserVO;
@@ -63,12 +62,14 @@ public class UserController {
     }
 
     @GetMapping("/get/login")
+    @SaCheckLogin
     public BaseResponse<LoginUserVO> getLoginUser(HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         return ResultUtils.success(userService.getLoginUserVO(loginUser));
     }
 
     @PostMapping("/logout")
+    @SaCheckLogin
     public BaseResponse<Boolean> userLogout(HttpServletRequest request) {
         ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
         boolean result = userService.userLogout(request);
@@ -79,7 +80,8 @@ public class UserController {
      * 创建用户
      */
     @PostMapping("/add")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Long> addUser(@RequestBody UserAddRequest userAddRequest) {
         ThrowUtils.throwIf(userAddRequest == null, ErrorCode.PARAMS_ERROR);
         User user = new User();
@@ -97,7 +99,7 @@ public class UserController {
      * 根据 id 获取用户（仅管理员）
      */
     @GetMapping("/get")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<User> getUserById(long id) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         User user = userService.getById(id);
@@ -109,6 +111,7 @@ public class UserController {
      * 根据 id 或账号获取包装类(团队管理)
      */
     @GetMapping("/get/vo")
+    @SaCheckLogin
     public BaseResponse<UserVO> getUserVOById(@RequestParam(required = false) Long id,
                                               @RequestParam(required = false) String userAccount) {
         // 参数校验：id 和 userAccount 至少提供一个
@@ -139,7 +142,7 @@ public class UserController {
      * 更新用户
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -155,7 +158,7 @@ public class UserController {
      * 删除用户
      */
     @PostMapping("/delete")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -171,7 +174,7 @@ public class UserController {
      * @param userQueryRequest 查询请求参数
      */
     @PostMapping("/list/page/vo")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<UserVO>> listUserVOByPage(@RequestBody UserQueryRequest userQueryRequest) {
         ThrowUtils.throwIf(userQueryRequest == null, ErrorCode.PARAMS_ERROR);
         long pageNum = userQueryRequest.getPageNum();

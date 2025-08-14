@@ -1,5 +1,6 @@
 package com.easen.aicode.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
@@ -14,6 +15,7 @@ import com.easen.aicode.mapper.UserMapper;
 import com.easen.aicode.model.vo.LoginUserVO;
 import com.easen.aicode.model.vo.UserVO;
 import com.easen.aicode.service.UserService;
+import com.easen.aicode.utils.DeviceUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,9 +24,12 @@ import org.springframework.util.DigestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.easen.aicode.constant.UserConstant.USER_LOGIN_STATE;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 用户 服务层实现。
@@ -32,8 +37,9 @@ import static com.easen.aicode.constant.UserConstant.USER_LOGIN_STATE;
  * @author <a>easen</a>
  */
 @Service
-public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements UserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
@@ -71,12 +77,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         }
         return user.getId();
     }
+
     @Override
     public String getEncryptPassword(String userPassword) {
         // 盐值，混淆密码
         final String SALT = "easen";
         return DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
     }
+
     @Override
     public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1. 校验
@@ -100,15 +108,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         if (user == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
         }
-        // 3. 记录用户的登录态
-        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+
+        // 获取设备信息
+        String device = DeviceUtils.getRequestDevice(request);
+        log.info("用户登录 - 用户ID: {}, 设备类型: {}, User-Agent: {}", 
+                user.getId(), device, request.getHeader("User-Agent"));
+        
         // 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
         StpKit.TEAM.login(user.getId());
         StpKit.TEAM.getSession().set(UserConstant.USER_LOGIN_STATE, user);
 
+        // Sa-Token 登录，并指定设备，同端登录互斥
+        StpUtil.login(user.getId(), device);
+        
+        // 获取生成的token
+        String tokenValue = StpUtil.getTokenValue();
+        log.info("用户登录成功 - 用户ID: {}, Token: {}, 设备: {}", user.getId(), tokenValue, device);
+        
+        // 将用户信息存储到会话中
+        StpUtil.getSession().set(USER_LOGIN_STATE, user);
+
         // 4. 获得脱敏后的用户信息
         return this.getLoginUserVO(user);
     }
+
     @Override
     public LoginUserVO getLoginUserVO(User user) {
         if (user == null) {
@@ -118,33 +141,53 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         BeanUtil.copyProperties(user, loginUserVO);
         return loginUserVO;
     }
+
+    //    @Override
+//    public User getLoginUser(HttpServletRequest request) {
+//        // 先判断是否已登录
+//        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+//        User currentUser = (User) userObj;
+//        if (currentUser == null || currentUser.getId() == null) {
+//            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+//        }
+//        // 从数据库查询（追求性能的话可以注释，直接返回上述结果）
+//        long userId = currentUser.getId();
+//        currentUser = this.getById(userId);
+//        if (currentUser == null) {
+//            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+//        }
+//        return currentUser;
+//    }
     @Override
     public User getLoginUser(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User currentUser = (User) userObj;
-        if (currentUser == null || currentUser.getId() == null) {
+        Object loginId = StpUtil.getLoginIdDefaultNull();
+        if (Objects.isNull(loginId)) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        // 从数据库查询（追求性能的话可以注释，直接返回上述结果）
-        long userId = currentUser.getId();
-        currentUser = this.getById(userId);
-        if (currentUser == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
-        }
-        return currentUser;
+        return (User) StpUtil.getSessionByLoginId(loginId).get(USER_LOGIN_STATE);
     }
+
+
+    //    @Override
+//    public boolean userLogout(HttpServletRequest request) {
+//        // 先判断是否已登录
+//        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+//        if (userObj == null) {
+//            throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
+//        }
+//        // 移除登录态
+//        request.getSession().removeAttribute(USER_LOGIN_STATE);
+//        return true;
+//    }
     @Override
     public boolean userLogout(HttpServletRequest request) {
-        // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        if (userObj == null) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
-        }
+        StpUtil.checkLogin();
         // 移除登录态
-        request.getSession().removeAttribute(USER_LOGIN_STATE);
+        StpUtil.logout();
         return true;
     }
+
     @Override
     public UserVO getUserVO(User user) {
         if (user == null) {
@@ -162,6 +205,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         }
         return userList.stream().map(this::getUserVO).collect(Collectors.toList());
     }
+
     @Override
     public QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest) {
         if (userQueryRequest == null) {
@@ -189,6 +233,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
             return false;
         }
         return UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
+    }
+
+    public boolean isAdminRequest(HttpServletRequest request) {
+        // 仅管理员可查询
+        // 基于 Sa-Token 改造
+        Object userObj = StpUtil.getSession().get(USER_LOGIN_STATE);
+        // Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        User user = (User) userObj;
+        return isAdmin(user);
     }
 
     @Override

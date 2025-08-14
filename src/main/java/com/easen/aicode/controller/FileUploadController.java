@@ -1,7 +1,8 @@
 package com.easen.aicode.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.core.util.StrUtil;
-import com.easen.aicode.annotation.AuthCheck;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.UserConstant;
@@ -58,7 +59,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/upload/image")
-    @AuthCheck
+    @SaCheckLogin
     public BaseResponse<String> uploadImage(@RequestParam("file") MultipartFile file,
                                            HttpServletRequest request) {
         // 参数校验
@@ -121,7 +122,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/upload/images")
-    @AuthCheck
+    @SaCheckLogin
     public BaseResponse<String[]> uploadImages(@RequestParam("files") MultipartFile[] files,
                                               HttpServletRequest request) {
         // 参数校验
@@ -193,7 +194,7 @@ public class FileUploadController {
      * @return 删除结果
      */
     @DeleteMapping("/delete/image")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> deleteImage(@RequestParam String imageUrl) {
         ThrowUtils.throwIf(StrUtil.isBlank(imageUrl), ErrorCode.PARAMS_ERROR, "图片URL不能为空");
         

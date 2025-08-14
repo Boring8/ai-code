@@ -1,7 +1,10 @@
 package com.easen.aicode.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
+import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
 import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
@@ -139,6 +142,7 @@ public class AppUserController {
      * @return 团队应用列表
      */
     @PostMapping("/list/my")
+    @SaCheckLogin
     public BaseResponse<Page<AppVO>> listMyTeamAppByPage(@RequestBody AppTeamQueryRequest appTeamQueryRequest,
                                                          HttpServletRequest request) {
         ThrowUtils.throwIf(appTeamQueryRequest == null, ErrorCode.PARAMS_ERROR);

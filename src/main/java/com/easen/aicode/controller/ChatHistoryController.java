@@ -1,6 +1,6 @@
 package com.easen.aicode.controller;
 
-import com.easen.aicode.annotation.AuthCheck;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.UserConstant;
@@ -31,8 +31,6 @@ public class ChatHistoryController {
     @Resource
     private ChatHistoryService chatHistoryService;
 
-    @Resource
-    private UserService userService;
 
     /**
      * 分页查询某个应用的对话历史（游标查询）
@@ -59,7 +57,7 @@ public class ChatHistoryController {
      * @return 对话历史分页
      */
     @PostMapping("/admin/list/page/vo")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<ChatHistoryVO>> listAllChatHistoryByPageForAdmin(@RequestBody ChatHistoryQueryRequest chatHistoryQueryRequest) {
         Page<ChatHistoryVO> result = chatHistoryService.listAllChatHistoryVOByPageForAdmin(chatHistoryQueryRequest);
         return ResultUtils.success(result);

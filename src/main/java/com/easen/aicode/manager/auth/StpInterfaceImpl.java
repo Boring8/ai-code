@@ -1,6 +1,7 @@
 package com.easen.aicode.manager.auth;
 
 import cn.dev33.satoken.stp.StpInterface;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
@@ -25,6 +26,7 @@ import com.easen.aicode.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -40,6 +42,7 @@ import static com.easen.aicode.constant.UserConstant.USER_LOGIN_STATE;
  * 自定义权限加载接口实现类
  */
 @Component    // 保证此类被 SpringBoot 扫描，完成 Sa-Token 的自定义权限验证扩展
+@Slf4j
 public class StpInterfaceImpl implements StpInterface {
 
     // 默认是 /api
@@ -71,7 +74,8 @@ public class StpInterfaceImpl implements StpInterface {
         // 获取 userId
         User loginUser = (User) StpKit.TEAM.getSessionByLoginId(loginId).get(USER_LOGIN_STATE);
         if (loginUser == null) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "用户未登录");
+            log.error( "用户未登录");
+            return new ArrayList<>();
         }
         // 管理员
         if (UserRoleEnum.ADMIN.getValue().equals(loginUser.getUserRole())) {
@@ -88,18 +92,21 @@ public class StpInterfaceImpl implements StpInterface {
         if (appUserId != null) {
             appUser = appUserService.getById(appUserId);
             if (appUser == null) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "应用权限校验 appUserId 错误");
+                log.error( "应用权限校验 appUserId 错误");
+                return new ArrayList<>();
             }
             return appUserAuthManager.getPermissionsByRole(appUser.getAppRole());
         }
         // 如果没有 appUserId，尝试通过 appId 获取 app 对象并处理
         Long appId = authContext.getAppId();
         if (appId == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到 appId 信息");
+            log.error( "未找到 appId 信息");
+            return new ArrayList<>();
         }
         App app = appService.getById(appId);
         if (app == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到 app 信息");
+            log.error( "未找到 app 信息");
+            return new ArrayList<>();
         }
         // 根据 App 类型判断权
         boolean isPublic = Objects.equals(app.getIsPublic(), AppTypeEnum.PUBLIC.getValue());
@@ -118,13 +125,17 @@ public class StpInterfaceImpl implements StpInterface {
         }
     }
 
+
     /**
-     * 本项目中不使用。返回一个账号所拥有的角色标识集合 (权限与角色可分开校验)
+     * 返回一个账号所拥有的角色标识集合 (权限与角色可分开校验)
      */
     @Override
-    public List<String> getRoleList(Object loginId, String loginType) {
-        return new ArrayList<>();
+    public List<String> getRoleList(Object loginId, String s) {
+        // 从当前登录用户信息中获取角色
+        User user = (User) StpUtil.getSessionByLoginId(loginId).get(USER_LOGIN_STATE);
+        return Collections.singletonList(user.getUserRole());
     }
+
 
     /**
      * 从请求中上下文对象

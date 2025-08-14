@@ -1,5 +1,6 @@
 package com.easen.aicode.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
 import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
@@ -32,6 +33,7 @@ public class StaticResourceController {
      * 访问格式：http://localhost:8123/api/static/{deployKey}[/{fileName}]
      */
     @GetMapping("/{deployKey}/**")
+    @SaCheckLogin
     public ResponseEntity<Resource> serveStaticResource(
             @PathVariable String deployKey,
             HttpServletRequest request) {
