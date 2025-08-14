@@ -61,12 +61,9 @@ public class GenerationTaskManager {
                 log.warn("用户无权限取消生成任务: appId={}, requestUserId={}, taskUserId={}", appId, userId, task.userId);
                 return false;
             }
-
             // 从任务列表中移除
             activeTasks.remove(appId);
-
             try {
-
                 // 取消流式响应
                 if (task.sink != null) {
                     task.sink.complete();
@@ -75,7 +72,6 @@ public class GenerationTaskManager {
                 if (task.disposable != null && !task.disposable.isDisposed()) {
                     task.disposable.dispose();
                 }
-                
                 // 更新聊天记录状态为手动中断（状态值1）
                 chatHistoryService.updateChatHistoryStatus(appId, userId, 1);
                 

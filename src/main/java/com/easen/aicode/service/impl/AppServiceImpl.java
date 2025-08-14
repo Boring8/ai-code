@@ -5,9 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
-import com.easen.aicode.ai.AiCodeGenNameService;
-import com.easen.aicode.ai.AiCodeGenTypeRoutingService;
-import com.easen.aicode.common.DeleteRequest;
+import com.easen.aicode.ai.*;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.core.AiCodeGeneratorFacade;
 import com.easen.aicode.core.AppResourceCleaner;
@@ -67,9 +65,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private ScreenshotService screenshotService;
 
-    @Resource
-    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
-
     @Autowired
     private UserService userService;
 
@@ -78,6 +73,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AppResourceCleaner appResourceCleaner;
+    @Resource
+    private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser, boolean agent) {
@@ -104,10 +101,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), 0);
         // 6. 调用 AI 生成代码（流式）
         Flux<String> codeStream;
-        if (agent){
+        if (agent) {
             //会员
             codeStream = new CodeGenConcurrentWorkflow().executeWorkflowWithFlux(message, appId, loginUser.getId());
-        }else {
+        } else {
             //普通
             codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId, loginUser.getId());
         }
@@ -169,8 +166,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         App updateApp = new App();
         if (app.getAppName() == null) {
             // 生成名称
-            String appName = aiCodeGenNameService.generateAppName(app.getInitPrompt());
-            ThrowUtils.throwIf(appName == null || appName.length() > 8, ErrorCode.SYSTEM_ERROR, "AI 生成的名称不符合规范");
+            AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService = aiCodeGenTypeRoutingServiceFactory.createAiCodeGenTypeRoutingService();
+            String appName = aiCodeGenTypeRoutingService.generateAppName(app.getInitPrompt());
+            ThrowUtils.throwIf(appName.length() == 0, ErrorCode.SYSTEM_ERROR, "AI 生成的名称不符合规范");
             updateApp.setAppName(appName);
         }
         updateApp.setId(appId);
@@ -206,8 +204,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         });
     }
 
-    @Resource
-    private AiCodeGenNameService aiCodeGenNameService;
 
     /**
      * 创建新应用
@@ -234,7 +230,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         app.setUserId(loginUser.getId());
 
         // 7. 使用AI智能路由服务，根据初始化提示词自动选择代码生成类型
-        CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(app.getInitPrompt());
+        AiCodeGenTypeRoutingService routingService = aiCodeGenTypeRoutingServiceFactory.createAiCodeGenTypeRoutingService();
+        CodeGenTypeEnum selectedCodeGenType = routingService.routeCodeGenType(appAddRequest.getInitPrompt());
         app.setCodeGenType(selectedCodeGenType.getValue());
 
         // 8. 保存应用到数据库

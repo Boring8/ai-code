@@ -109,7 +109,7 @@ public class AppController {
      * @param request 请求对象
      * @return 取消结果
      */
-    @PostMapping("/chat/cancel/generation")
+    @PostMapping("/chat/cancel")
     public BaseResponse<Boolean> cancelCodeGeneration(@RequestParam Long appId,
                                                       HttpServletRequest request) {
         // 参数校验
