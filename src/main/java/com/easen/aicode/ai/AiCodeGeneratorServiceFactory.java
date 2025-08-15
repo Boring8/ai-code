@@ -1,5 +1,6 @@
 package com.easen.aicode.ai;
 
+import com.easen.aicode.ai.guardrail.PromptSafetyInputGuardrail;
 import com.easen.aicode.ai.tools.FileWriteTool;
 import com.easen.aicode.ai.tools.ToolManager;
 import com.easen.aicode.exception.BusinessException;
@@ -61,6 +62,7 @@ public class AiCodeGeneratorServiceFactory {
                         .streamingChatModel(reasoningStreamingChatModel)
                         .chatMemoryProvider(memoryId -> chatMemory)
                         .tools(toolManager.getAllTools())
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
                         .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
                                 toolExecutionRequest, "Error: there is no tool called " + toolExecutionRequest.name()
                         ))
@@ -73,6 +75,7 @@ public class AiCodeGeneratorServiceFactory {
                         .chatModel(chatModel)
                         .streamingChatModel(openAiStreamingChatModel)
                         .chatMemory(chatMemory)
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
                         .build();
             }
             default -> throw new BusinessException(ErrorCode.SYSTEM_ERROR,
