@@ -35,11 +35,11 @@ public class AppEventProducer {
         RingBuffer<AppEvent> ringBuffer = appEventDisruptor.getRingBuffer();
         // 获取到可以防止事件的位置
         long next = ringBuffer.next();
-        AppEvent pictureEditEvent = ringBuffer.get(next);
-        pictureEditEvent.setAppRequestMessage(appRequestMessage);
-        pictureEditEvent.setSession(session);
-        pictureEditEvent.setUser(user);
-        pictureEditEvent.setAppId(appId);
+        AppEvent appEvent = ringBuffer.get(next);
+        appEvent.setAppRequestMessage(appRequestMessage);
+        appEvent.setSession(session);
+        appEvent.setUser(user);
+        appEvent.setAppId(appId);
         // 发布事件
         ringBuffer.publish(next);
     }

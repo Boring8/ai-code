@@ -524,20 +524,7 @@ const connectWebSocket = () => {
     websocket.onclose = (event) => {
       console.log('WebSocket连接已关闭', event.code, event.reason)
       wsConnected.value = false
-      
-      // 如果不是手动关闭且应该重连，则尝试重连
-      if (event.code !== 1000 && wsReconnectAttempts < maxReconnectAttempts && isTeamApp.value) {
-        wsReconnectAttempts++
-        console.log(`WebSocket将在${reconnectDelay}ms后尝试第${wsReconnectAttempts}次重连`)
-        
-        wsReconnectTimer = setTimeout(() => {
-          console.log(`正在进行第${wsReconnectAttempts}次WebSocket重连...`)
-          connectWebSocket()
-        }, reconnectDelay)
-      } else if (wsReconnectAttempts >= maxReconnectAttempts) {
-        console.error('WebSocket重连次数已达上限，停止重连')
-        message.error('WebSocket连接失败，团队协作功能不可用。请刷新页面重试。')
-      }
+
     }
   } catch (error) {
     console.error('建立WebSocket连接失败:', error)
@@ -557,7 +544,7 @@ const sendWebSocketMessage = (message: any) => {
 const handleWebSocketMessage = (data: any) => {
   console.log('收到WebSocket消息:', data)
   
-  switch (data.type) {
+  switch (data.messageType) {
     case 'INFO':
       // 处理服务端初始信息
       console.log('收到服务端初始信息:', data)
@@ -568,9 +555,6 @@ const handleWebSocketMessage = (data: any) => {
         currentEditingUser.value = data.currentEditingUser
       }
       break
-      
-
-      
     case 'USER_ENTER_EDIT':
       // 用户开始对话
       if (data.user) {
@@ -579,15 +563,17 @@ const handleWebSocketMessage = (data: any) => {
           // 其他用户开始生成代码，显示加载状态
           isOtherUserGenerating.value = true
           otherGeneratingUser.value = data.user
+          console.log(data.editAction,"11111111111111111111111111111111111111111");
           
           // 显示其他用户的输入消息
           if (data.editAction) {
+            
             messages.value.push({
               messageType: 'user',
               content: data.editAction,
               userName: data.user.userName,
               userAvatar: data.user.userAvatar,
-              type: data.messageType || 'text' // 根据消息类型设置
+              type: data.type || 'text' // 根据消息类型设置
             })
             
             // 滚动到底部
@@ -689,7 +675,6 @@ const showAppDetail = () => {
 // 处理上传成功
 const handleUploadSuccess = (urls: string[]) => {
   uploadedImages.value = [...uploadedImages.value, ...urls]
-  message.success(`成功上传 ${urls.length} 张图片`)
 }
 
 // 处理上传错误
@@ -893,13 +878,14 @@ const sendInitialMessage = async (prompt: string) => {
   // 只在团队应用中发送WebSocket消息通知其他用户开始对话
   if (isTeamApp.value) {
     sendWebSocketMessage({
-      type: 'USER_ENTER_EDIT',
+      messageType: 'USER_ENTER_EDIT',
       user: {
         id: loginUserStore.loginUser.id,
         userName: loginUserStore.loginUser.userName,
         userAvatar: loginUserStore.loginUser.userAvatar
       },
-      editAction: prompt
+      editAction: prompt,
+      type: 'text'
     })
   }
 
@@ -978,28 +964,28 @@ ${selectedElement.value.outerHTML}
   if (isTeamApp.value) {
     // 发送文字消息
     sendWebSocketMessage({
-      type: 'USER_ENTER_EDIT',
+      messageType: 'USER_ENTER_EDIT',
       user: {
         id: loginUserStore.loginUser.id,
         userName: loginUserStore.loginUser.userName,
         userAvatar: loginUserStore.loginUser.userAvatar
       },
       editAction: message,
-      messageType: 'text'
+      type: 'text'
     })
 
     // 如果有图片，分别发送图片消息
     if (currentUploadedImages.length > 0) {
       currentUploadedImages.forEach(imageUrl => {
         sendWebSocketMessage({
-          type: 'USER_ENTER_EDIT',
+          messageType: 'USER_ENTER_EDIT',
           user: {
             id: loginUserStore.loginUser.id,
             userName: loginUserStore.loginUser.userName,
             userAvatar: loginUserStore.loginUser.userAvatar
           },
           editAction: imageUrl,
-          messageType: 'image'
+          type: 'image'
         })
       })
     }
@@ -1092,7 +1078,7 @@ const generateCode = async (userMessage: string, aiMessageIndex: number, imageUr
           // 只在团队应用中实时推送流式内容到其他用户
           if (isTeamApp.value) {
             sendWebSocketMessage({
-              type: 'AI_EDIT_ACTION',
+              messageType: 'AI_EDIT_ACTION',
               user: {
                 id: loginUserStore.loginUser.id,
                 userName: loginUserStore.loginUser.userName,
@@ -1120,7 +1106,7 @@ const generateCode = async (userMessage: string, aiMessageIndex: number, imageUr
       // 只在团队应用中发送退出编辑状态消息
       if (isTeamApp.value) {
         sendWebSocketMessage({
-          type: 'USER_EXIT_EDIT',
+          messageType: 'USER_EXIT_EDIT',
           user: {
             id: loginUserStore.loginUser.id,
             userName: loginUserStore.loginUser.userName,
@@ -1204,7 +1190,7 @@ const stopGeneration = async () => {
       // 只在团队应用中发送退出编辑状态消息
       if (isTeamApp.value) {
           sendWebSocketMessage({
-            type: 'USER_EXIT_EDIT',
+            messageType: 'USER_EXIT_EDIT',
             user: {
               id: loginUserStore.loginUser.id,
               userName: loginUserStore.loginUser.userName,
@@ -1226,7 +1212,7 @@ const stopGeneration = async () => {
     // 只在团队应用中发送退出编辑状态消息
     if (isTeamApp.value) {
       sendWebSocketMessage({
-        type: 'USER_EXIT_EDIT',
+        messageType: 'USER_EXIT_EDIT',
         user: {
           id: loginUserStore.loginUser.id,
           userName: loginUserStore.loginUser.userName,
@@ -1255,7 +1241,7 @@ const handleError = (error: unknown, aiMessageIndex: number) => {
   // 只在团队应用中发送退出编辑状态消息
   if (isTeamApp.value) {
     sendWebSocketMessage({
-      type: 'USER_EXIT_EDIT',
+      messageType: 'USER_EXIT_EDIT',
       user: {
         id: loginUserStore.loginUser.id,
         userName: loginUserStore.loginUser.userName,

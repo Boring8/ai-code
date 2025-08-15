@@ -10,13 +10,15 @@ public class AppResponseMessage {
     /**
      * 消息类型
      */
-    private String type;
+    private String messageType;
 
     /**
-     * 信息
+     * 格式
      */
-    private String message;
-
+    private String type;
+    /**
+     * 动作
+     */
     private String editAction;
 
     /**

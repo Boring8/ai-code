@@ -60,9 +60,8 @@ public class AppEditHandler extends TextWebSocketHandler {
         appSessions.putIfAbsent(appId, ConcurrentHashMap.newKeySet());
         appSessions.get(appId).add(session);
         AppResponseMessage appResponseMessage = new AppResponseMessage();
-        appResponseMessage.setType(AppMessageTypeEnum.INFO.getValue());
-        String message = String.format("用户 %s 加入编辑", user.getUserName());
-        appResponseMessage.setMessage(message);
+        appResponseMessage.setMessageType(AppMessageTypeEnum.INFO.getValue());
+        log.info("用户 {} 加入编辑", user.getUserName());
         appResponseMessage.setUser(userService.getUserVO(user));
         broadcastToApp(appId, appResponseMessage);
     }
@@ -121,12 +120,11 @@ public class AppEditHandler extends TextWebSocketHandler {
             }
         }
         // 通知其他用户，该用户已经离开编辑
-        AppResponseMessage pictureEditResponseMessage = new AppResponseMessage();
-        pictureEditResponseMessage.setType(AppMessageTypeEnum.INFO.getValue());
-        String message = String.format("用户 %s 离开编辑", user.getUserName());
-        pictureEditResponseMessage.setMessage(message);
-        pictureEditResponseMessage.setUser(userService.getUserVO(user));
-        broadcastToApp(appId, pictureEditResponseMessage);
+        AppResponseMessage appResponseMessage = new AppResponseMessage();
+        appResponseMessage.setMessageType(AppMessageTypeEnum.INFO.getValue());
+        log.info("用户 {} 离开编辑", user.getUserName());
+        appResponseMessage.setUser(userService.getUserVO(user));
+        broadcastToApp(appId, appResponseMessage);
     }
 
     /**
@@ -142,15 +140,14 @@ public class AppEditHandler extends TextWebSocketHandler {
         Long editingUserId = appDoingUsers.get(appId);
         // 确认是当前的编辑者
         if (editingUserId != null && editingUserId.equals(user.getId())) {
-            // 移除用户正在编辑该图片
+            // 移除用户正在编辑
             appDoingUsers.remove(appId);
             // 构造响应，发送退出编辑的消息通知
-            AppResponseMessage pictureEditResponseMessage = new AppResponseMessage();
-            pictureEditResponseMessage.setType(AppMessageTypeEnum.USER_EXIT_EDIT.getValue());
-            String message = String.format("AI回答 %s 完毕", user.getUserName());
-            pictureEditResponseMessage.setMessage(message);
-            pictureEditResponseMessage.setUser(userService.getUserVO(user));
-            broadcastToApp(appId, pictureEditResponseMessage);
+            AppResponseMessage appResponseMessage = new AppResponseMessage();
+            appResponseMessage.setMessageType(AppMessageTypeEnum.USER_EXIT_EDIT.getValue());
+            log.info("AI 回答 {} 完毕", user.getUserName());
+            appResponseMessage.setUser(userService.getUserVO(user));
+            broadcastToApp(appId, appResponseMessage);
         }
     }
 
@@ -164,20 +161,35 @@ public class AppEditHandler extends TextWebSocketHandler {
      * @param appId
      */
     public void userHandleEnterEditMessage(AppRequestMessage appRequestMessage, WebSocketSession session, User user, Long appId) throws IOException {
-        // 没有用户正在编辑该图片，才能进入编辑
+        // 没有用户正在编辑，才能进入编辑
         if (!appDoingUsers.containsKey(appId)) {
-            // 设置用户正在编辑该图片
+            // 设置用户正在编辑
             appDoingUsers.put(appId, user.getId());
             // 构造响应，发送加入编辑的消息通知
             AppResponseMessage appResponseMessage = new AppResponseMessage();
-            appResponseMessage.setType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
-            String message = String.format("AI开始回答 %s ", user.getUserName());
-            appResponseMessage.setMessage(message);
+            appResponseMessage.setMessageType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
+            log.info("AI 开始回答 {}", user.getUserName());
+            appResponseMessage.setType(appRequestMessage.getType());
             appResponseMessage.setEditAction(appRequestMessage.getEditAction());
             appResponseMessage.setUser(userService.getUserVO(user));
             // 广播给所有用户
             broadcastToApp(appId, appResponseMessage);
+        }else {
+            //判断是否为user未提交完地数据
+            Long editingUserId = appDoingUsers.get(appId);
+            if(editingUserId != null && editingUserId.equals(user.getId())){
+                // 构造响应，发送加入编辑的消息通知
+                AppResponseMessage appResponseMessage = new AppResponseMessage();
+                appResponseMessage.setMessageType(AppMessageTypeEnum.USER_ENTER_EDIT.getValue());
+                log.info("AI 开始回答 {}", user.getUserName());
+                appResponseMessage.setType(appRequestMessage.getType());
+                appResponseMessage.setEditAction(appRequestMessage.getEditAction());
+                appResponseMessage.setUser(userService.getUserVO(user));
+                // 广播给所有用户
+                broadcastToApp(appId, appResponseMessage);
+            }
         }
+
     }
 
     /**
@@ -192,9 +204,9 @@ public class AppEditHandler extends TextWebSocketHandler {
         Long editingUserId = appDoingUsers.get(appId);
         if (editingUserId != null && editingUserId.equals(user.getId())) {
             AppResponseMessage appResponseMessage = new AppResponseMessage();
-            appResponseMessage.setType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
-            String message = String.format("AI 正在回答 %s", user.getUserName());
-            appResponseMessage.setMessage(message);
+            appResponseMessage.setMessageType(AppMessageTypeEnum.AI_EDIT_ACTION.getValue());
+            log.info("AI 正在回答 {}", user.getUserName());
+            appResponseMessage.setType(appRequestMessage.getType());
             appResponseMessage.setEditAction(appRequestMessage.getEditAction());
             appResponseMessage.setUser(userService.getUserVO(user));
             // 广播给除了当前客户端之外的其他用户，否则会造成重复编辑

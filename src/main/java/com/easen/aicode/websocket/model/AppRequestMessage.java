@@ -17,12 +17,15 @@ public class AppRequestMessage {
     /**
      * 消息类型
      */
-    private String type;
+    private String messageType;
 
     /**
-     * 执行的编辑动作;
+     * 执行的编辑动作
      */
     private String editAction;
 
-
+    /**
+     * 格式
+     */
+    private String type;
 }

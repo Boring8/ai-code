@@ -37,8 +37,8 @@ public class AppEventWorkHandler implements WorkHandler<AppEvent> {
         User user = appEvent.getUser();
         Long appId = appEvent.getAppId();
         // 获取到消息类别
-        String type = appRequestMessage.getType();
-        AppMessageTypeEnum appMessageTypeEnum = AppMessageTypeEnum.getEnumByValue(type);
+        String messageType = appRequestMessage.getMessageType();
+        AppMessageTypeEnum appMessageTypeEnum = AppMessageTypeEnum.getEnumByValue(messageType);
         // 根据消息类型处理消息
         switch (appMessageTypeEnum) {
             case USER_ENTER_EDIT:
@@ -53,8 +53,7 @@ public class AppEventWorkHandler implements WorkHandler<AppEvent> {
             default:
                 // 其他消息类型，返回错误提示
                 AppResponseMessage appResponseMessage = new AppResponseMessage();
-                appResponseMessage.setType(AppMessageTypeEnum.ERROR.getValue());
-                appResponseMessage.setMessage("消息类型错误");
+                appResponseMessage.setMessageType(AppMessageTypeEnum.ERROR.getValue());
                 appResponseMessage.setUser(userService.getUserVO(user));
                 session.sendMessage(new TextMessage(JSONUtil.toJsonStr(appResponseMessage)));
                 break;
