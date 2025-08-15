@@ -9,6 +9,8 @@ import com.easen.aicode.ai.model.MultiFileCodeResult;
 import com.easen.aicode.ai.model.message.AiResponseMessage;
 import com.easen.aicode.ai.model.message.ToolExecutedMessage;
 import com.easen.aicode.ai.model.message.ToolRequestMessage;
+import com.easen.aicode.constant.AppConstant;
+import com.easen.aicode.core.builder.VueProjectBuilder;
 import com.easen.aicode.core.parser.CodeParserExecutor;
 import com.easen.aicode.core.saver.CodeFileSaverExecutor;
 import com.easen.aicode.exception.BusinessException;
@@ -38,6 +40,9 @@ public class AiCodeGeneratorFacade {
 
     @Resource
     private GenerationTaskManager generationTaskManager;
+
+    @Resource
+    private VueProjectBuilder vueProjectBuilder;
 //
 //    /**
 //     * 统一入口：根据类型生成并保存代码
@@ -219,6 +224,10 @@ public class AiCodeGeneratorFacade {
                         sink.next(JSONUtil.toJsonStr(toolExecutedMessage));
                     })
                     .onCompleteResponse((ChatResponse response) -> {
+                        // 执行 Vue 项目构建（同步执行，确保预览时项目已就绪）
+                        String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
+                        vueProjectBuilder.buildProject(projectPath);
+
                         generationTaskManager.completeTask(appId);
                         sink.complete();
                     })
