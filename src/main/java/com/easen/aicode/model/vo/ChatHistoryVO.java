@@ -62,4 +62,9 @@ public class ChatHistoryVO implements Serializable {
      * 消息状态 0正常 1手动中断 2 AI异常中断
      */
     private Integer status;
+
+    /**
+     * 消息类型
+     */
+    private String type;
 }

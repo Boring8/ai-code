@@ -77,7 +77,14 @@ public class ChatHistory implements Serializable {
     /**
      * 消息状态 0正常 1手动中断 2 AI异常中断
      */
+    @Column("status")
     private Integer status;
+
+    /**
+     * 消息类型
+     */
+    @Column("type")
+    private String type;
 
     /**
      * 是否删除
@@ -85,4 +92,9 @@ public class ChatHistory implements Serializable {
     @Column(value = "isDelete", isLogicDelete = true)
     private Integer isDelete;
 
+    /**
+     * 消息类型
+     */
+    @Column("onlyId")
+    private String onlyId;
 }

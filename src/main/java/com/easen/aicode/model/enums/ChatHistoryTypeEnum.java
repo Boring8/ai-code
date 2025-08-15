@@ -8,20 +8,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 角色枚举
+ * 空间角色枚举
  */
 @Getter
-public enum AppRoleEnum {
+public enum ChatHistoryTypeEnum {
 
-    VIEWER("浏览者", "viewer"),
-    EDITOR("编辑者", "editor"),
-    ADMIN("管理员", "admin");
+    TEXT("文本", "text"),
+    IMAGE("图片", "image");
 
     private final String text;
 
     private final String value;
 
-    AppRoleEnum(String text, String value) {
+    ChatHistoryTypeEnum(String text, String value) {
         this.text = text;
         this.value = value;
     }
@@ -32,11 +31,11 @@ public enum AppRoleEnum {
      * @param value 枚举值的 value
      * @return 枚举值
      */
-    public static AppRoleEnum getEnumByValue(String value) {
+    public static ChatHistoryTypeEnum getEnumByValue(String value) {
         if (ObjUtil.isEmpty(value)) {
             return null;
         }
-        for (AppRoleEnum anEnum : AppRoleEnum.values()) {
+        for (ChatHistoryTypeEnum anEnum : ChatHistoryTypeEnum.values()) {
             if (anEnum.value.equals(value)) {
                 return anEnum;
             }
@@ -50,8 +49,8 @@ public enum AppRoleEnum {
      * @return 文本列表
      */
     public static List<String> getAllTexts() {
-        return Arrays.stream(AppRoleEnum.values())
-                .map(AppRoleEnum::getText)
+        return Arrays.stream(ChatHistoryStatusEnum.values())
+                .map(ChatHistoryStatusEnum::getText)
                 .collect(Collectors.toList());
     }
 
@@ -61,8 +60,8 @@ public enum AppRoleEnum {
      * @return 值列表
      */
     public static List<String> getAllValues() {
-        return Arrays.stream(AppRoleEnum.values())
-                .map(AppRoleEnum::getValue)
+        return Arrays.stream(ChatHistoryTypeEnum.values())
+                .map(ChatHistoryTypeEnum::getValue)
                 .collect(Collectors.toList());
     }
 }

@@ -52,26 +52,6 @@ const setPrompt = (prompt: string) => {
   userPrompt.value = prompt
 }
 
-// 处理上传成功
-const handleUploadSuccess = (urls: string[]) => {
-  uploadedImages.value = [...uploadedImages.value, ...urls]
-  message.success(`成功上传 ${urls.length} 张图片`)
-}
-
-// 处理上传错误
-const handleUploadError = (error: string) => {
-  message.error(error)
-}
-
-// 处理上传开始
-const handleUploadStart = () => {
-  uploading.value = true
-}
-
-// 处理上传结束
-const handleUploadEnd = () => {
-  uploading.value = false
-}
 
 // 创建应用
 const createApp = async () => {
@@ -88,21 +68,10 @@ const createApp = async () => {
 
   creating.value = true
   try {
-    // 生成应用名称：取用户输入的前10位
-    const appName = userPrompt.value.trim().substring(0, 10)
-    
-    // 构建包含图片路径的提示词
-    let fullPrompt = userPrompt.value.trim()
-    
-    // 如果有上传的图片，将图片路径添加到提示词中
-    if (uploadedImages.value.length > 0) {
-      const imageUrls = uploadedImages.value.join(', ')
-      fullPrompt += `\n\n上传的图片路径：${imageUrls}`
-    }
+
     
     const res = await addApp({
-      appName: appName,
-      initPrompt: fullPrompt,
+      initPrompt: userPrompt.value,
     })
 
     if (res.data.code === 0 && res.data.data) {
@@ -231,58 +200,20 @@ onMounted(() => {
       <!-- 输入区域 -->
       <div class="input-section">
         <div class="input-container">
-          <!-- 上传的图片预览 -->
-          <div v-if="uploadedImages.length > 0" class="uploaded-images">
-            <div class="images-title">已上传的图片：</div>
-            <div class="images-grid">
-              <div 
-                v-for="(imageUrl, index) in uploadedImages" 
-                :key="index"
-                class="image-item"
-              >
-                <img :src="imageUrl" :alt="`图片${index + 1}`" class="preview-image" />
-                <div class="image-overlay">
-                  <a-button 
-                    type="text" 
-                    size="small" 
-                    class="delete-btn"
-                    @click="uploadedImages.splice(index, 1)"
-                  >
-                    ✕
-                  </a-button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
+
+    
           <a-textarea
             v-model:value="userPrompt"
-            placeholder="使用 NoCode 创建一个高效的小工具,帮我计算........"
+            placeholder="使用 easen AI 创建一个应用........"
             :rows="3"
             :maxlength="1000"
             class="prompt-input"
           />
           <div class="input-actions">
             <div class="left-actions">
-              <UploadButton
-                :disabled="uploading"
-                :multiple="true"
-                :max-count="5"
-                accept="image/*"
-                button-text="上传图片"
-                button-type="text"
-                button-size="middle"
-                :show-icon="true"
-                class="action-btn"
-                @upload-success="handleUploadSuccess"
-                @upload-error="handleUploadError"
-                @upload-start="handleUploadStart"
-                @upload-end="handleUploadEnd"
-              />
-
+              <!-- 左侧可以放置其他操作按钮 -->
             </div>
             <div class="right-actions">
-
               <a-button 
                 type="primary" 
                 size="large" 

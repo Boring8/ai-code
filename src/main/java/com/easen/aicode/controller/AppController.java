@@ -71,10 +71,11 @@ public class AppController {
      * @param request 请求对象
      * @return 生成结果流
      */
-    @GetMapping(value = "/chat/gen/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = "/chat/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_EDIT)
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message,
+                                                       @RequestParam(required = false) List<String> image,
                                                        HttpServletRequest request) {
         // 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
@@ -82,7 +83,7 @@ public class AppController {
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
         //如果是会员调用工作流生成代码
-        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser, loginUser.getUserRole().equals(UserRoleEnum.MEMBER.getValue()));
+        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser, image);
         // 转换为 ServerSentEvent 格式
         return contentFlux
                 .map(chunk -> {

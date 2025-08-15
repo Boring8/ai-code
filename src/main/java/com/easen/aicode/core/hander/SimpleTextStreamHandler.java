@@ -2,6 +2,7 @@ package com.easen.aicode.core.hander;
 
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
+import com.easen.aicode.model.enums.ChatHistoryStatusEnum;
 import com.easen.aicode.service.ChatHistoryService;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -29,9 +30,6 @@ public class SimpleTextStreamHandler {
                                ChatHistoryService chatHistoryService,
                                long appId, User loginUser) {
         StringBuilder aiResponseBuilder = new StringBuilder();
-        // 用于跟踪流是否被中断
-        AtomicBoolean isInterrupted = new AtomicBoolean(false);
-
         return originFlux
                 .map(chunk -> {
                     // 收集AI响应内容
@@ -41,13 +39,13 @@ public class SimpleTextStreamHandler {
                 .doOnComplete(() -> {
                     // 流式响应正常完成，添加AI消息到对话历史
                     String aiResponse = aiResponseBuilder.toString();
-                    chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),0);
+                    chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(), null);
                     log.info("流正常完成，保存完整AI响应到数据库: appId={}, userId={}, contentLength={}", appId, loginUser.getId(), aiResponse.length());
                 })
                 .doOnError(error -> {
                     String errorMessage = "AI回复失败: " + error.getMessage();
                     log.error("AI回复失败，保存错误信息到数据库: appId={}, userId={}, error={}", appId, loginUser.getId(), error.getMessage());
-                    chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),0);
+                    chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),ChatHistoryStatusEnum.AI_INTERRUPTED.getValue(),null);
                 });
     }
 }

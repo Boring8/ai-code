@@ -74,13 +74,16 @@ export class UploadService {
 
       // 调用上传接口
       const response = await uploadImage(formData)
+      console.log('uploadImage 接口返回:', response)
 
       if (response.data.code === 0 && response.data.data) {
+        console.log('上传成功，返回的URL:', response.data.data)
         return {
           success: true,
           data: response.data.data
         }
       } else {
+        console.log('上传失败:', response.data.message)
         return {
           success: false,
           error: response.data.message || '上传失败'
@@ -124,6 +127,8 @@ export class UploadService {
       const urls = results
         .filter(result => result.success)
         .map(result => result.data as string)
+
+      console.log('uploadMultipleFiles 成功上传的URLs:', urls)
 
       return {
         success: true,

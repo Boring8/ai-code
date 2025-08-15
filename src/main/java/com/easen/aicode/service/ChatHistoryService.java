@@ -10,6 +10,7 @@ import com.mybatisflex.core.service.IService;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 对话历史 服务层。
@@ -25,10 +26,10 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @param message     消息
      * @param messageType 消息类型
      * @param userId      用户 id
-     * @param start       状态
+     * @param status       状态
      * @return 是否成功
      */
-    boolean addChatMessage(Long appId, String message, String messageType, Long userId, Integer start);
+    boolean addChatMessage(Long appId,String message, String messageType, Long userId, Integer status,List<String> image);
 
     /**
      * 根据应用 id 删除对话历史

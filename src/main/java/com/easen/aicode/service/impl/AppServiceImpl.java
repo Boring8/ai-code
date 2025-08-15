@@ -20,8 +20,7 @@ import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.mapper.AppMapper;
 import com.easen.aicode.model.entity.User;
-import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
-import com.easen.aicode.model.enums.CodeGenTypeEnum;
+import com.easen.aicode.model.enums.*;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.*;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -77,7 +76,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 
     @Override
-    public Flux<String> chatToGenCode(Long appId, String message, User loginUser, boolean agent) {
+    public Flux<String> chatToGenCode(Long appId, String message, User loginUser, List<String> images) {
         // 1. 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 不能为空");
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
@@ -97,20 +96,49 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
         log.info("chatToGenCode AI回复:  appId:{}", appId);
-        // 5. 在调用 AI 前，先保存用户消息到数据库中
-        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), 0);
-        // 6. 调用 AI 生成代码（流式）
+        
+        // 5. 构建包含图片的完整消息
+        String fullMessage = buildMessageWithImages(message, images);
+        
+        // 6. 在调用 AI 前，先保存用户消息到数据库中
+        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(), images);
+        
+        // 7. 调用 AI 生成代码（流式）
         Flux<String> codeStream;
-        if (agent) {
+        if (loginUser.getUserRole().equals(UserRoleEnum.MEMBER.getValue())) {
             //会员
-            codeStream = new CodeGenConcurrentWorkflow().executeWorkflowWithFlux(message, appId, loginUser.getId());
+            codeStream = new CodeGenConcurrentWorkflow().executeWorkflowWithFlux(fullMessage, appId, loginUser.getId());
         } else {
             //普通
-            codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId, loginUser.getId());
+            codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(fullMessage, codeGenTypeEnum, appId, loginUser.getId());
         }
         // 7. 收集 AI 响应的内容，并且在完成后保存记录到对话历史
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
 
+    }
+    
+    /**
+     * 构建包含图片的完整消息
+     *
+     * @param message 原始消息
+     * @param images  图片列表
+     * @return 包含图片的完整消息
+     */
+    private String buildMessageWithImages(String message, List<String> images) {
+        if (CollUtil.isEmpty(images)) {
+            return message;
+        }
+        
+        StringBuilder fullMessage = new StringBuilder(message);
+        
+        // 添加图片信息到消息中
+        for (String image : images) {
+            if (StrUtil.isNotBlank(image)) {
+                fullMessage.append("\n\n图片: ").append(image);
+            }
+        }
+        
+        return fullMessage.toString();
     }
 
 

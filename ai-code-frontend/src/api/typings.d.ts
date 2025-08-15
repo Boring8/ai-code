@@ -22,7 +22,7 @@ declare namespace API {
   }
 
   type AppDeployRequest = {
-    appId?: number
+    appId?: string
   }
 
   type AppQueryRequest = {
@@ -30,18 +30,19 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: string
+    id?: number
     appName?: string
     codeGenType?: string
     userId?: number
     priority?: number
     initPrompt?: string
+    isPublic?: number
     isTeam?: number
   }
 
   type AppTeamCreateRequest = {
-    appId?: string
-    userId?: string
+    appId?: number
+    userId?: number
   }
 
   type AppTeamInviteRequest = {
@@ -217,11 +218,13 @@ declare namespace API {
     createTime?: string
     updateTime?: string
     status?: number
+    type?: string // 消息类型：text-文字，image-图片
   }
 
-  type chatToGenCodeParams = {
-    appId: number
-    message: string
+  type ChatToGenCodeRequest = {
+    appId?: number
+    message?: string
+    image?: string[]
   }
 
   type deleteImageParams = {

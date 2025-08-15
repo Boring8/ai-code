@@ -127,7 +127,7 @@ public class AiCodeGeneratorServiceFactory {
      */
     @Bean
     public AiCodeGeneratorService aiCodeGeneratorService() {
-        return getAiCodeGeneratorService(0);
+        return getAiCodeGeneratorService(0L);
     }
 }
 

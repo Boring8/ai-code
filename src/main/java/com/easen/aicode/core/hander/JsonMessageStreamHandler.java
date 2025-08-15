@@ -11,6 +11,7 @@ import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.core.builder.VueProjectBuilder;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
+import com.easen.aicode.model.enums.ChatHistoryStatusEnum;
 import com.easen.aicode.service.ChatHistoryService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -62,10 +63,9 @@ public class JsonMessageStreamHandler {
                 .filter(StrUtil::isNotEmpty) // 过滤空字串
                 .doOnComplete(() -> {
                     //判断消息状态
-                    Integer start = isInterrupted.get() ? 1 : 0;
                     // 流式响应完成后，添加 AI 消息到对话历史
                     String aiResponse = chatHistoryStringBuilder.toString();
-                    chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),0);
+                    chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(),null);
                     // 异步构造 Vue 项目
                     String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
                     vueProjectBuilder.buildProjectAsync(projectPath);
@@ -73,7 +73,7 @@ public class JsonMessageStreamHandler {
                 .doOnError(error -> {
                     // 如果AI回复失败，也要记录错误消息
                     String errorMessage = "AI回复失败: " + error.getMessage();
-                    chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),2);
+                    chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(),ChatHistoryStatusEnum.AI_INTERRUPTED.getValue(),null);
                 });
     }
 

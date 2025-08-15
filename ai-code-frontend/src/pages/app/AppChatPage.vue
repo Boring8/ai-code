@@ -80,9 +80,18 @@
           </div>
 
           <div v-for="(message, index) in messages" :key="message.id || index" class="message-item">
-            <div v-if="message.type === 'user'" class="user-message">
+            <div v-if="message.messageType === 'user'" class="user-message">
               <div class="message-content">
-                {{ message.content }}
+                <!-- 根据消息类型显示不同内容 -->
+                <div v-if="message.type === 'image'" class="message-image-content">
+                  <img 
+                    :src="message.content" 
+                    :alt="`用户上传的图片`" 
+                    class="message-single-image" 
+                    @click="previewImage(message.content)"
+                  />
+                </div>
+                <div v-else class="message-text">{{ message.content }}</div>
                 <div v-if="message.userName" class="message-user">
                   {{ message.userName }}
                 </div>
@@ -394,13 +403,14 @@ const otherGeneratingUser = ref<API.UserVO | null>(null)
 // 对话相关
 interface Message {
   id?: number
-  type: 'user' | 'ai'
+  messageType: 'user' | 'ai'
   content: string
   loading?: boolean
   createTime?: string
   userName?: string
   userAvatar?: string
   status?: number
+  type?: string // 消息类型：text-文字，image-图片
 }
 
 const messages = ref<Message[]>([])
@@ -452,6 +462,10 @@ const isTeamApp = computed(() => {
 
 // 应用详情相关
 const appDetailVisible = ref(false)
+
+// 图片预览相关
+const imagePreviewVisible = ref(false)
+const previewImageUrl = ref('')
 
 // 可视化编辑相关
 const visualEditor = new VisualEditor()
@@ -569,10 +583,11 @@ const handleWebSocketMessage = (data: any) => {
           // 显示其他用户的输入消息
           if (data.editAction) {
             messages.value.push({
-              type: 'user',
+              messageType: 'user',
               content: data.editAction,
               userName: data.user.userName,
-              userAvatar: data.user.userAvatar
+              userAvatar: data.user.userAvatar,
+              type: data.messageType || 'text' // 根据消息类型设置
             })
             
             // 滚动到底部
@@ -618,7 +633,7 @@ const handleWebSocketMessage = (data: any) => {
           
           // 添加AI消息占位符
           messages.value.push({
-            type: 'ai',
+            messageType: 'ai',
             content: '',
             loading: true,
             userName: data.user.userName,
@@ -631,7 +646,7 @@ const handleWebSocketMessage = (data: any) => {
         
         // 更新消息内容
         const lastMessage = messages.value[messages.value.length - 1]
-        if (lastMessage && lastMessage.type === 'ai') {
+        if (lastMessage && lastMessage.messageType === 'ai') {
           lastMessage.content = streamingContent.value
           lastMessage.loading = false
           scrollToBottom()
@@ -824,11 +839,12 @@ const loadChatHistory = async (loadMore = false) => {
       // 转换历史消息格式
       const formattedMessages: Message[] = historyMessages.map(msg => ({
         id: msg.id,
-        type: msg.messageType === 'user' ? 'user' : 'ai',
+        messageType: msg.messageType === 'user' ? 'user' : 'ai',
         content: msg.message || '',
         createTime: msg.createTime,
         userName: msg.userName,
         status: msg.status,
+        type: msg.type || 'text', // 映射后端的type字段，text-文字，image-图片
       }))
 
       if (loadMore) {
@@ -889,16 +905,17 @@ const sendInitialMessage = async (prompt: string) => {
 
   // 添加用户消息
   messages.value.push({
-    type: 'user',
+    messageType: 'user',
     content: prompt,
     userName: loginUserStore.loginUser.userName,
-    userAvatar: loginUserStore.loginUser.userAvatar
+    userAvatar: loginUserStore.loginUser.userAvatar,
+    type: 'text' // 初始消息默认为文字类型
   })
 
   // 添加AI消息占位符
   const aiMessageIndex = messages.value.length
   messages.value.push({
-    type: 'ai',
+    messageType: 'ai',
     content: '',
     loading: true,
   })
@@ -908,7 +925,7 @@ const sendInitialMessage = async (prompt: string) => {
 
   // 开始生成
   isGenerating.value = true
-  await generateCode(prompt, aiMessageIndex)
+  await generateCode(prompt, aiMessageIndex, [])
 }
 
 // 发送消息
@@ -923,12 +940,6 @@ const sendMessage = async () => {
   }
 
   let message = userInput.value.trim()
-  
-  // 如果有上传的图片，将图片路径添加到消息中
-  if (uploadedImages.value.length > 0) {
-    const imageUrls = uploadedImages.value.join(', ')
-    message += `\n\n上传的图片路径：${imageUrls}`
-  }
   
   // 如果有选中的元素，将元素信息添加到提示词中
   if (selectedElement.value) {
@@ -957,11 +968,15 @@ ${selectedElement.value.outerHTML}
     visualEditor.toggleEditMode()
   }
   
+  // 保存上传的图片地址，用于API调用
+  const currentUploadedImages = [...uploadedImages.value]
+  
   // 发送消息后清空上传的图片
   uploadedImages.value = []
 
   // 只在团队应用中发送WebSocket消息通知其他用户开始对话
   if (isTeamApp.value) {
+    // 发送文字消息
     sendWebSocketMessage({
       type: 'USER_ENTER_EDIT',
       user: {
@@ -969,22 +984,53 @@ ${selectedElement.value.outerHTML}
         userName: loginUserStore.loginUser.userName,
         userAvatar: loginUserStore.loginUser.userAvatar
       },
-      editAction: message
+      editAction: message,
+      messageType: 'text'
+    })
+
+    // 如果有图片，分别发送图片消息
+    if (currentUploadedImages.length > 0) {
+      currentUploadedImages.forEach(imageUrl => {
+        sendWebSocketMessage({
+          type: 'USER_ENTER_EDIT',
+          user: {
+            id: loginUserStore.loginUser.id,
+            userName: loginUserStore.loginUser.userName,
+            userAvatar: loginUserStore.loginUser.userAvatar
+          },
+          editAction: imageUrl,
+          messageType: 'image'
+        })
+      })
+    }
+  }
+
+  // 如果有图片，先添加图片消息
+  if (currentUploadedImages.length > 0) {
+    currentUploadedImages.forEach(imageUrl => {
+      messages.value.push({
+        messageType: 'user',
+        content: imageUrl,
+        userName: loginUserStore.loginUser.userName,
+        userAvatar: loginUserStore.loginUser.userAvatar,
+        type: 'image' // 图片消息
+      })
     })
   }
 
-  // 添加用户消息
+  // 添加文字消息
   messages.value.push({
-    type: 'user',
+    messageType: 'user',
     content: message,
     userName: loginUserStore.loginUser.userName,
-    userAvatar: loginUserStore.loginUser.userAvatar
+    userAvatar: loginUserStore.loginUser.userAvatar,
+    type: 'text' // 文字消息
   })
 
   // 添加AI消息占位符
   const aiMessageIndex = messages.value.length
   messages.value.push({
-    type: 'ai',
+    messageType: 'ai',
     content: '',
     loading: true,
   })
@@ -992,13 +1038,13 @@ ${selectedElement.value.outerHTML}
   await nextTick()
   scrollToBottom()
 
-  // 开始生成
+  // 开始生成（只对文字消息进行AI响应）
   isGenerating.value = true
-  await generateCode(message, aiMessageIndex)
+  await generateCode(message, aiMessageIndex, currentUploadedImages)
 }
 
 // 生成代码 - 使用 EventSource 处理流式响应
-const generateCode = async (userMessage: string, aiMessageIndex: number) => {
+const generateCode = async (userMessage: string, aiMessageIndex: number, imageUrls: string[] = []) => {
   let streamCompleted = false
 
   try {
@@ -1011,7 +1057,14 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
       message: userMessage,
     })
 
-    const url = `${baseURL}/app/chat/gen/code?${params}`
+    // 添加图片地址参数，支持多个图片
+    if (imageUrls && imageUrls.length > 0) {
+      imageUrls.forEach(imageUrl => {
+        params.append('image', imageUrl)
+      })
+    }
+
+    const url = `${baseURL}/app/chat/code?${params}`
 
     // 创建 EventSource 连接
     currentEventSource = new EventSource(url, {
@@ -1019,8 +1072,6 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     })
 
     let fullContent = ''
-
-
 
     // 处理接收到的消息
     currentEventSource.onmessage = function (event) {
@@ -1146,7 +1197,7 @@ const stopGeneration = async () => {
       
       // 更新最后一条AI消息，显示生成被停止
       const lastMessage = messages.value[messages.value.length - 1]
-      if (lastMessage && lastMessage.type === 'ai') {
+              if (lastMessage && lastMessage.messageType === 'ai') {
         lastMessage.content += '\n\n[生成已停止]'
         lastMessage.loading = false
       }
@@ -1386,6 +1437,12 @@ const editApp = () => {
 // 返回首页
 const goHome = () => {
   router.push('/')
+}
+
+// 预览图片
+const previewImage = (imageUrl: string) => {
+  previewImageUrl.value = imageUrl
+  imagePreviewVisible.value = true
 }
 
 // 删除应用
@@ -1657,6 +1714,46 @@ onUnmounted(() => {
   background: #f5f5f5;
   color: #1a1a1a;
   padding: 8px 12px;
+}
+
+.message-text {
+  margin-bottom: 8px;
+}
+
+
+
+.message-image-content {
+  margin-bottom: 8px;
+}
+
+.message-single-image {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.message-single-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 图片预览样式 */
+.image-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.preview-full-image {
+  max-width: 100%;
+  max-height: 600px;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .message-user {
