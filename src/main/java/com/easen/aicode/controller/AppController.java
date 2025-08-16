@@ -425,7 +425,7 @@ public class AppController {
         vo.setIsTeam(app.getIsTeam());
         vo.setCreateTime(app.getCreateTime());
         vo.setUpdateTime(app.getUpdateTime());
-        vo.setThumbCount(app.getThumbCount() != null ? app.getThumbCount().longValue() : 0L);
+        vo.setThumbCount(app.getThumbCount());
         return vo;
     }
 }

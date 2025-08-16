@@ -2,6 +2,7 @@ package com.easen.aicode.service.impl;
 
 
 import com.easen.aicode.common.PageRequest;
+import com.easen.aicode.constant.ThumbConstant;
 import com.easen.aicode.mapper.ThumbMapper;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.Thumb;
@@ -12,6 +13,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,14 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb>  implement
 
     @Resource
     private AppService appService;
+
+    @Resource
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    public ThumbServiceImpl(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
 
     @Override
     public Page<AppThumbVO> getAppThumbPage(PageRequest pageRequest) {
@@ -66,8 +76,8 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb>  implement
         // 如果点赞记录保存成功，更新应用的点赞数
         if (saveResult) {
             updateAppThumbCount(appId, 1);
+            redisTemplate.opsForHash().put(ThumbConstant.USER_THUMB_KEY_PREFIX + userId.toString(), appId.toString(), thumb.getId());
         }
-        
         return saveResult;
     }
 
@@ -78,24 +88,20 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb>  implement
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("appId", appId)
                 .eq("userId", userId);
-        
+        Long thumbId = ((Long) redisTemplate.opsForHash().get(ThumbConstant.USER_THUMB_KEY_PREFIX + userId.toString(), appId.toString()));
         boolean removeResult = this.remove(queryWrapper);
-        
+
         // 如果删除成功，更新应用的点赞数
         if (removeResult) {
             updateAppThumbCount(appId, -1);
+            redisTemplate.opsForHash().delete(ThumbConstant.USER_THUMB_KEY_PREFIX + userId, thumbId.toString());
         }
-        
         return removeResult;
     }
 
     @Override
     public boolean isUserLikedApp(Long appId, Long userId) {
-        QueryWrapper queryWrapper = QueryWrapper.create()
-                .eq("appId", appId)
-                .eq("userId", userId);
-        
-        return this.count(queryWrapper) > 0;
+        return redisTemplate.opsForHash().hasKey(ThumbConstant.USER_THUMB_KEY_PREFIX + userId, appId.toString());
     }
     
     /**
