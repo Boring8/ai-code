@@ -3,8 +3,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
-import { addApp, listMyAppByPage, listFeaturedAppByPage } from '@/api/appController'
+import { addApp, listMyAppByPage } from '@/api/appController'
 import { listMyTeamAppByPage } from '@/api/appUserController'
+import { likeApp, unlikeApp, isUserLikedApp } from '../api/thumbController'
 import { getDeployUrl } from '@/config/env'
 import AppCard from '@/components/AppCard.vue'
 import UploadButton from '@/components/UploadButton.vue'
@@ -39,13 +40,7 @@ const teamAppsPage = reactive({
   total: 0,
 })
 
-// 精选应用数据
-const featuredApps = ref<API.AppVO[]>([])
-const featuredAppsPage = reactive({
-  current: 1,
-  pageSize: 6,
-  total: 0,
-})
+
 
 // 设置提示词
 const setPrompt = (prompt: string) => {
@@ -136,25 +131,7 @@ const loadTeamApps = async () => {
   }
 }
 
-// 加载精选应用
-const loadFeaturedApps = async () => {
-  try {
-    const res = await listFeaturedAppByPage({
-      pageNum: featuredAppsPage.current,
-      pageSize: featuredAppsPage.pageSize,
-      sortField: 'createTime',
-      sortOrder: 'desc',
-      priority: 99,
-    })
 
-    if (res.data.code === 0 && res.data.data) {
-      featuredApps.value = res.data.data.records || []
-      featuredAppsPage.total = res.data.data.totalRow || 0
-    }
-  } catch (error) {
-    console.error('加载精选应用失败：', error)
-  }
-}
 
 // 查看对话
 const viewChat = (appId: string | number | undefined) => {
@@ -178,11 +155,43 @@ const viewTeamManagement = (appId: string | number | undefined) => {
   }
 }
 
+// 处理点赞/取消点赞
+const handleLike = async (appId: string | number | undefined, liked: boolean) => {
+  if (!appId) {
+    message.error('应用ID无效')
+    return
+  }
+
+  try {
+    let success = false
+    if (liked) {
+      // 点赞
+      const res = await likeApp({ appId: Number(appId) })
+      success = res.data.code === 0 && res.data.data
+    } else {
+      // 取消点赞
+      const res = await unlikeApp({ appId: Number(appId) })
+      success = res.data.code === 0 && res.data.data
+    }
+
+    if (success) {
+      message.success(liked ? '点赞成功' : '取消点赞成功')
+      // 重新加载数据以更新点赞状态
+      await loadMyApps()
+      await loadTeamApps()
+    } else {
+      message.error(liked ? '点赞失败' : '取消点赞失败')
+    }
+  } catch (error) {
+    console.error('点赞操作失败：', error)
+    message.error('操作失败，请稍后重试')
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
   loadMyApps()
   loadTeamApps()
-  loadFeaturedApps()
 })
 </script>
 
@@ -268,6 +277,7 @@ onMounted(() => {
             @view-chat="viewChat"
             @view-work="viewWork"
             @team-management="viewTeamManagement"
+            @like="handleLike"
           />
           <div v-if="myApps.length === 0" class="empty-state">
             <div class="empty-icon">📄</div>
@@ -302,6 +312,7 @@ onMounted(() => {
             @view-chat="viewChat"
             @view-work="viewWork"
             @team-management="viewTeamManagement"
+            @like="handleLike"
           />
         </div>
         <div v-if="teamAppsPage.total > 0" class="pagination-wrapper">
@@ -316,40 +327,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 精选案例 -->
-      <div class="section">
-      <div class="section-header">
-              <h2 class="section-title">
-          <span class="section-icon">⭐</span>
-          精选案例
-        </h2></div>
 
-        <div class="featured-grid">
-          <AppCard
-            v-for="app in featuredApps"
-            :key="app.id"
-            :app="app"
-            :featured="true"
-            @view-chat="viewChat"
-            @view-work="viewWork"
-            @team-management="viewTeamManagement"
-          />
-          <div v-if="featuredApps.length === 0" class="empty-state">
-            <div class="empty-icon">📄</div>
-            <p class="empty-text">暂无案例</p>
-          </div>
-        </div>
-        <div v-if="featuredAppsPage.total > 0" class="pagination-wrapper">
-          <a-pagination
-            v-model:current="featuredAppsPage.current"
-            v-model:page-size="featuredAppsPage.pageSize"
-            :total="featuredAppsPage.total"
-            :show-size-changer="false"
-            :show-total="(total: number) => `共 ${total} 个案例`"
-            @change="loadFeaturedApps"
-          />
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -711,8 +689,7 @@ onMounted(() => {
 }
 
 /* 应用网格 */
-.app-grid,
-.featured-grid {
+.app-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
@@ -792,8 +769,7 @@ onMounted(() => {
     font-size: 18px;
   }
   
-  .app-grid,
-  .featured-grid {
+  .app-grid {
     grid-template-columns: 1fr;
   }
   

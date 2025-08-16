@@ -23,6 +23,7 @@ import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.AppRoleEnum;
 import com.easen.aicode.model.enums.AppTypeEnum;
 import com.easen.aicode.model.enums.UserRoleEnum;
+import com.easen.aicode.model.vo.AppThumbDetailVO;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.ratelimit.annotation.RateLimit;
 import com.easen.aicode.ratelimit.enums.RateLimitType;
@@ -46,6 +47,8 @@ import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 应用 控制层。
@@ -269,7 +272,7 @@ public class AppController {
             condition = "#appQueryRequest.pageNum <= 10"
     )
     @PostMapping("/list/featured")
-    public BaseResponse<Page<AppVO>> listFeaturedAppByPage(@RequestBody AppQueryRequest appQueryRequest) {
+    public BaseResponse<Page<AppThumbDetailVO>> listFeaturedAppByPage(@RequestBody AppQueryRequest appQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
         // 限制每页最多20个
         Integer pageSize = Math.min(appQueryRequest.getPageSize(), 20);
@@ -279,11 +282,15 @@ public class AppController {
         long pageNum = appQueryRequest.getPageNum();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
-
-        Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
-        List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
-        appVOPage.setRecords(appVOList);
-        return ResultUtils.success(appVOPage);
+        
+        // 将 Page<App> 转换为 Page<AppThumbDetailVO>
+        Page<AppThumbDetailVO> appThumbDetailVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
+        List<AppThumbDetailVO> appThumbDetailVOList = appPage.getRecords().stream()
+                .map(this::convertToAppThumbDetailVO)
+                .toList();
+        appThumbDetailVOPage.setRecords(appThumbDetailVOList);
+        
+        return ResultUtils.success(appThumbDetailVOPage);
     }
 
     /**
@@ -357,7 +364,6 @@ public class AppController {
      * @return 应用详情
      */
     @GetMapping("/get/admin")
-//    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<App> getAppByIdAdmin(long id) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
@@ -401,5 +407,25 @@ public class AppController {
         String downloadFileName = String.valueOf(appId);
         // 7. 调用通用下载服务
         projectDownloadService.downloadProjectAsZip(sourceDirPath, downloadFileName, response);
+    }
+
+    /**
+     * 将 App 实体转换为 AppThumbDetailVO
+     *
+     * @param app 应用实体
+     * @return 应用点赞详细信息视图对象
+     */
+    private AppThumbDetailVO convertToAppThumbDetailVO(App app) {
+        AppThumbDetailVO vo = new AppThumbDetailVO();
+        vo.setId(app.getId());
+        vo.setAppName(app.getAppName());
+        vo.setCover(app.getCover());
+        vo.setDeployKey(app.getDeployKey());
+        vo.setPriority(app.getPriority());
+        vo.setIsTeam(app.getIsTeam());
+        vo.setCreateTime(app.getCreateTime());
+        vo.setUpdateTime(app.getUpdateTime());
+        vo.setThumbCount(app.getThumbCount() != null ? app.getThumbCount().longValue() : 0L);
+        return vo;
     }
 }

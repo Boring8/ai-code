@@ -60,7 +60,7 @@ import { useRouter } from 'vue-router'
 import { type MenuProps, message } from 'ant-design-vue'
 import { useLoginUserStore } from '../stores/loginUser'
 import { userLogout } from '../api/userController'
-import { LogoutOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { LogoutOutlined, HomeOutlined, UserOutlined, StarOutlined } from '@ant-design/icons-vue'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
@@ -78,6 +78,12 @@ const originItems = [
     icon: () => h(HomeOutlined),
     label: '首页',
     title: '首页',
+  },
+  {
+    key: '/recommend',
+    icon: () => h(StarOutlined),
+    label: '推荐',
+    title: '推荐',
   },
   {
     key: '/admin/userManage',

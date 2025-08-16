@@ -9,6 +9,7 @@ import * as appUserController from './appUserController'
 import * as appController from './appController'
 import * as staticResourceController from './staticResourceController'
 import * as healthController from './healthController'
+import * as thumbController from './thumbController'
 export default {
   userController,
   fileUploadController,
@@ -17,4 +18,5 @@ export default {
   appController,
   staticResourceController,
   healthController,
+  thumbController,
 }

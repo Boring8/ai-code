@@ -2,24 +2,21 @@ package com.easen.aicode.model.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import com.mybatisflex.annotation.Column;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * 应用视图（脱敏）
+ * 应用点赞详细信息视图类
  *
  * @author <a>easen</a>
  */
 @Data
-public class AppVO implements Serializable {
+public class AppThumbDetailVO implements Serializable {
 
     /**
-     * id
+     * 应用id
      */
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
@@ -35,19 +32,9 @@ public class AppVO implements Serializable {
     private String cover;
 
     /**
-     * 代码生成类型
-     */
-    private String codeGenType;
-
-    /**
      * 部署标识
      */
     private String deployKey;
-
-    /**
-     * 部署时间
-     */
-    private LocalDateTime deployedTime;
 
     /**
      * 优先级
@@ -55,25 +42,9 @@ public class AppVO implements Serializable {
     private Integer priority;
 
     /**
-     * 创建用户id
-     */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long userId;
-
-    /**
      * 是否为团队应用(0否，1是)
      */
     private Integer isTeam;
-
-    /**
-     * 提示词
-     */
-    private String initPrompt;
-
-    /**
-     * 是否为公开应用(0否，1是)
-     */
-    private Integer isPublic;
 
     /**
      * 创建时间
@@ -88,12 +59,6 @@ public class AppVO implements Serializable {
     /**
      * 点赞数
      */
-    private Integer thumbCount;
+    private Long thumbCount;
 
-    /**
-     * 权限列表
-     */
-    private List<String> permissionList = new ArrayList<>();
-
-    private static final long serialVersionUID = 1L;
-} 
+}

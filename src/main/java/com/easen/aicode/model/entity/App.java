@@ -119,4 +119,10 @@ public class App implements Serializable {
      */
     @Column("isTeam")
     private Integer isTeam;
+
+    /**
+     * 点赞数
+     */
+    @Column("thumbCount")
+    private Integer thumbCount;
 }

@@ -6,6 +6,7 @@ import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.User;
+import com.easen.aicode.model.vo.AppThumbDetailVO;
 import com.easen.aicode.model.vo.AppVO;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
@@ -47,24 +48,6 @@ public interface AppService extends IService<App> {
      * @return 查询条件
      */
     QueryWrapper getQueryWrapper(AppQueryRequest appQueryRequest);
-
-    /**
-     * 验证用户是否有权限操作应用
-     *
-     * @param appId  应用id
-     * @param userId 用户id
-     * @return 是否有权限
-     */
-    boolean validateUserPermission(Long appId, Long userId);
-
-    /**
-     * 验证用户是否为应用创建者
-     *
-     * @param appId  应用id
-     * @param userId 用户id
-     * @return 是否为创建者
-     */
-    boolean isAppCreator(Long appId, Long userId);
 
 
     /**

@@ -108,6 +108,18 @@ declare namespace API {
     permissionList?: string[]
   }
 
+  type AppThumbDetailVO = {
+    id?: number
+    appName?: string
+    cover?: string
+    deployKey?: string
+    priority?: number
+    isTeam?: number
+    createTime?: string
+    updateTime?: string
+    thumbCount?: number
+  }
+
   type BaseResponseApp = {
     code?: number
     data?: App
@@ -153,6 +165,12 @@ declare namespace API {
   type BaseResponsePageAppVO = {
     code?: number
     data?: PageAppVO
+    message?: string
+  }
+
+  type BaseResponsePageAppThumbDetailVO = {
+    code?: number
+    data?: PageAppThumbDetailVO
     message?: string
   }
 
@@ -295,6 +313,15 @@ declare namespace API {
     optimizeCountQuery?: boolean
   }
 
+  type PageAppThumbDetailVO = {
+    records?: AppThumbDetailVO[]
+    pageNumber?: number
+    pageSize?: number
+    totalPage?: number
+    totalRow?: number
+    optimizeCountQuery?: boolean
+  }
+
   type PageChatHistoryVO = {
     records?: ChatHistoryVO[]
     pageNumber?: number
@@ -383,5 +410,39 @@ declare namespace API {
     userAvatar?: string
     userProfile?: string
     userRole?: string
+  }
+
+  type AppThumbVO = {
+    appId?: number
+    appName?: string
+    thumbNum?: number
+  }
+
+  type PageAppThumbVO = {
+    records?: AppThumbVO[]
+    pageNumber?: number
+    pageSize?: number
+    totalPage?: number
+    totalRow?: number
+    optimizeCountQuery?: boolean
+  }
+
+  type appThumbPageParams = {
+    pageNum?: number
+    pageSize?: number
+    sortField?: string
+    sortOrder?: string
+  }
+
+  type likeAppParams = {
+    appId: String
+  }
+
+  type unlikeAppParams = {
+    appId: String
+  }
+
+  type isUserLikedAppParams = {
+    appId: String
   }
 }

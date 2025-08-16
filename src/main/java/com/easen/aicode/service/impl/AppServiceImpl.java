@@ -39,6 +39,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.easen.aicode.model.vo.AppThumbDetailVO;
+import com.easen.aicode.service.ThumbService;
 
 /**
  * 应用 服务层实现。
@@ -365,13 +367,28 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
         Integer isPublic = appQueryRequest.getIsPublic();
-        QueryWrapper queryWrapper = QueryWrapper.create()
-                .eq("id", id)
-                .eq("codeGenType", codeGenType)
-                .eq("userId", userId)
-                .eq("priority", priority)
-                .eq("isPublic", isPublic)
-                .like("appName", appName);
+        
+        QueryWrapper queryWrapper = QueryWrapper.create();
+        
+        // 只在参数不为空时才添加条件
+        if (id != null) {
+            queryWrapper.eq("id", id);
+        }
+        if (StrUtil.isNotBlank(codeGenType)) {
+            queryWrapper.eq("codeGenType", codeGenType);
+        }
+        if (userId != null) {
+            queryWrapper.eq("userId", userId);
+        }
+        if (priority != null) {
+            queryWrapper.eq("priority", priority);
+        }
+        if (isPublic != null) {
+            queryWrapper.eq("isPublic", isPublic);
+        }
+        if (StrUtil.isNotBlank(appName)) {
+            queryWrapper.like("appName", appName);
+        }
 
         // 排序
         if (StrUtil.isNotBlank(sortField)) {
@@ -384,32 +401,5 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         return queryWrapper;
     }
 
-    @Override
-    public boolean validateUserPermission(Long appId, Long userId) {
-        if (appId == null || userId == null) {
-            return false;
-        }
-        App app = this.getById(appId);
-        if (app == null) {
-            return false;
-        }
 
-        // 如果是创建者，直接有权限
-        if (app.getUserId().equals(userId)) {
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public boolean isAppCreator(Long appId, Long userId) {
-        if (appId == null || userId == null) {
-            return false;
-        }
-        App app = this.getById(appId);
-        if (app == null) {
-            return false;
-        }
-        return app.getUserId().equals(userId);
-    }
 }

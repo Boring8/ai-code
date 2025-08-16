@@ -129,7 +129,7 @@ export async function listFeaturedAppByPage(
   body: API.AppQueryRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageAppVO>('/app/list/featured', {
+  return request<API.BaseResponsePageAppThumbDetailVO>('/app/list/featured', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

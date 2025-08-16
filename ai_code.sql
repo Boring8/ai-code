@@ -11,7 +11,7 @@
  Target Server Version : 80018
  File Encoding         : 65001
 
- Date: 15/08/2025 13:14:36
+ Date: 16/08/2025 13:10:49
 */
 
 SET NAMES utf8mb4;
@@ -37,6 +37,7 @@ CREATE TABLE `app`  (
   `updateTime` datetime(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
   `isDelete` tinyint(4) NOT NULL DEFAULT 0 COMMENT '是否删除',
   `isTeam` int(11) NOT NULL DEFAULT 0 COMMENT '是否为团队应用(0否，1是)',
+  `thumbCount` int(255) NULL DEFAULT 0 COMMENT '点赞数',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_deployKey`(`deployKey`) USING BTREE,
   INDEX `idx_appName`(`appName`) USING BTREE,
@@ -80,7 +81,20 @@ CREATE TABLE `chat_history`  (
   INDEX `idx_appId`(`appId`) USING BTREE,
   INDEX `idx_createTime`(`createTime`) USING BTREE,
   INDEX `idx_appId_createTime`(`appId`, `createTime`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 313607731360239617 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '对话历史' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 313889877698203649 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '对话历史' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for thumb
+-- ----------------------------
+DROP TABLE IF EXISTS `thumb`;
+CREATE TABLE `thumb`  (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `userId` bigint(20) NOT NULL,
+  `appId` bigint(20) NOT NULL,
+  `createTime` datetime(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `idx_userId_appId`(`userId`, `appId`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user

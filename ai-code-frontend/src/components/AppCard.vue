@@ -72,6 +72,20 @@
           >
             团队
           </a-button>
+          <a-button 
+            type="text" 
+            size="small" 
+            @click="handleLike"
+            class="action-btn like-btn"
+            :class="{ 'liked': isLiked }"
+            :loading="isLoadingLikeStatus"
+            :disabled="isLoadingLikeStatus"
+          >
+            <template #icon>
+              <span v-if="!isLoadingLikeStatus" class="like-icon">{{ isLiked ? '❤️' : '🤍' }}</span>
+            </template>
+            {{ likeCount }}
+          </a-button>
         </div>
       </div>
       <!-- 添加时间显示 -->
@@ -84,19 +98,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { formatRelativeTime } from '../utils/time'
 import { toAppIdString } from '../utils/appIdUtils'
+import { isUserLikedApp } from '../api/thumbController'
 
 interface Props {
-  app: API.AppVO
+  app: API.AppThumbDetailVO
   featured?: boolean
 }
 
 interface Emits {
-  (e: 'view-chat', appId: string | number | undefined): void
-  (e: 'view-work', app: API.AppVO): void
+  (e: 'view-chat', appId: string): void
+  (e: 'view-work', app: API.AppThumbDetailVO): void
   (e: 'team-management', appId: string | number | undefined): void
+  (e: 'like', appId: string | number | undefined, liked: boolean): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -104,6 +120,38 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+// 点赞状态 - 初始化为false，等待API检查结果
+const isLiked = ref(false)
+const likeCount = ref(props.app.thumbCount || 0) // 从 props 中获取点赞数
+const isLoadingLikeStatus = ref(false)
+
+// 检查用户是否已点赞该应用
+const checkUserLikeStatus = async () => {
+  if (!props.app.id) return
+  
+  try {
+    isLoadingLikeStatus.value = true
+    const appIdStr = toAppIdString(props.app.id)
+    if (!appIdStr) return
+    
+    const res = await isUserLikedApp({ appId: appIdStr })
+    if (res.data.code === 0) {
+      isLiked.value = res.data.data || false
+    }
+  } catch (error) {
+    console.error('检查用户点赞状态失败：', error)
+    // 如果检查失败，保持默认的false状态
+    isLiked.value = false
+  } finally {
+    isLoadingLikeStatus.value = false
+  }
+}
+
+// 组件挂载时检查用户点赞状态
+onMounted(() => {
+  checkUserLikeStatus()
+})
 
 // 计算显示的时间
 const displayTime = computed(() => {
@@ -120,7 +168,9 @@ const timeLabel = computed(() => {
 const handleViewChat = () => {
   // 确保AppId在传递时保持字符串格式，避免精度丢失
   const appIdStr = toAppIdString(props.app.id)
-  emit('view-chat', appIdStr)
+  if (appIdStr) {
+    emit('view-chat', appIdStr)
+  }
 }
 
 const handleViewWork = () => {
@@ -130,8 +180,29 @@ const handleViewWork = () => {
 const handleTeamManagement = () => {
   // 确保AppId在传递时保持字符串格式，避免精度丢失
   const appIdStr = toAppIdString(props.app.id)
-  emit('team-management', appIdStr)
+  if (appIdStr) {
+    emit('team-management', appIdStr)
+  }
 }
+
+const handleLike = () => {
+  // 如果正在加载点赞状态，不允许操作
+  if (isLoadingLikeStatus.value) return
+  
+  isLiked.value = !isLiked.value
+  if (isLiked.value) {
+    likeCount.value++
+  } else {
+    likeCount.value--
+  }
+  // 确保AppId在传递时保持字符串格式，避免精度丢失
+  const appIdStr = toAppIdString(props.app.id)
+  if (appIdStr) {
+    emit('like', appIdStr, isLiked.value)
+  }
+}
+
+
 </script>
 
 <style scoped>
@@ -492,6 +563,47 @@ const handleTeamManagement = () => {
 .action-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   color: #ffffff;
+}
+
+.like-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.like-btn.liked {
+  background: rgba(255, 105, 180, 0.2) !important;
+  color: #ff69b4 !important;
+}
+
+.like-btn.liked:hover {
+  background: rgba(255, 105, 180, 0.3) !important;
+}
+
+.like-icon {
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.like-btn.liked .like-icon {
+  animation: heartBeat 0.6s ease-in-out;
+}
+
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.3);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.3);
+  }
+  70% {
+    transform: scale(1);
+  }
 }
 
 /* 新增时间样式 */
