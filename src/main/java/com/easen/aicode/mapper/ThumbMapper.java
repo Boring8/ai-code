@@ -4,6 +4,8 @@ package com.easen.aicode.mapper;
 import com.easen.aicode.model.entity.Thumb;
 import com.mybatisflex.core.BaseMapper;
 
+import java.util.List;
+
 /**
  *  映射层。
  *
@@ -11,4 +13,5 @@ import com.mybatisflex.core.BaseMapper;
  */
 public interface ThumbMapper extends BaseMapper<Thumb> {
 
+    void deleteBatch(List<Thumb> thumbListDecr);
 }

@@ -16,5 +16,11 @@
     <sql id="Base_Column_List">
         id, userId, appId, createTime
     </sql>
+    <delete id="deleteBatch">
+        DELETE FROM thumb WHERE 
+        <foreach collection="list" item="item" separator=" OR ">
+            (userId = #{item.userId} AND appId = #{item.appId})
+        </foreach>
+    </delete>
 
 </mapper>

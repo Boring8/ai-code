@@ -24,5 +24,17 @@
     <sql id="Base_Column_List">
         id, appName, cover, initPrompt, codeGenType, deployKey, deployedTime, priority, userId, isTeam, editTime, createTime, updateTime, isDelete
     </sql>
+    <update id="batchUpdateThumbCount">
+        UPDATE app
+        SET thumbCount = thumbCount + CASE id
+        <foreach collection="countMap.entrySet()" item="value" index="key">
+            WHEN #{key} THEN #{value}
+        </foreach>
+        END
+        WHERE id IN
+        <foreach collection="countMap.keySet()" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
 
 </mapper>

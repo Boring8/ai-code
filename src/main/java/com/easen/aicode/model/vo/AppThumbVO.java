@@ -28,5 +28,5 @@ public class AppThumbVO implements Serializable {
     /**
      * 点赞数
      */
-    private Long thumbCount;
+    private Integer thumbCount;
 }

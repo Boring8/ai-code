@@ -49,7 +49,7 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb>  implement
         
         // 使用 QueryWrapper 构建查询，直接使用应用表中的 thumbCount 字段
         QueryWrapper queryWrapper = QueryWrapper.create()
-                .select("a.id, a.appName, COALESCE(a.thumbCount, 0) as thumbCount")
+                .select("a.id, a.appName, a.thumbCount")
                 .from("app").as("a")
                 .where("a.isDelete = 0")
                 .orderBy("a.thumbCount DESC, a.id DESC");

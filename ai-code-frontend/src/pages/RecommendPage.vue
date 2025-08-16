@@ -203,7 +203,7 @@ onMounted(() => {
               >
                 <span class="topic-rank">{{ index + 1 }}</span>
                 <span class="topic-title">{{ app.appName || '未命名应用' }}</span>
-                <span class="topic-views">{{ app.thumbNum || 0 }} 点赞</span>
+                <span class="topic-views">{{ app.thumbCount || 0 }} 点赞</span>
               </div>
             </div>
           </div>
