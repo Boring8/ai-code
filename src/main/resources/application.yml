@@ -91,3 +91,9 @@ sa-token:
   token-style: uuid
   # 是否输出操作日志
   is-log: true
+# 热 key 探测
+hotkey:
+  app-name: easenAi
+  caffeine-size: 10000
+  push-period: 1000
+  etcd-server: http://localhost:2379

@@ -40,10 +40,20 @@ public class AppQueryRequest extends PageRequest implements Serializable {
      */
     private Integer priority;
 
+    /**
+     * 提示词
+     */
     private String initPrompt;
 
+    /**
+     * 是否公开
+     */
     private Integer isPublic;
 
+    /**
+     * 是否为团队应用
+     */
     private Integer isTeam;
+
     private static final long serialVersionUID = 1L;
 } 

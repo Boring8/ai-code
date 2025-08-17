@@ -29,7 +29,7 @@
     <properties>
         <java.version>21</java.version>
     </properties>
-    
+
 
     <dependencies>
         <!-- Redisson -->
@@ -160,11 +160,7 @@
             <artifactId>HikariCP</artifactId>
             <version>4.0.3</version>
         </dependency>
-        <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>5.8.38</version>
-        </dependency>
+
         <dependency>
             <groupId>com.github.xiaoymin</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
@@ -191,7 +187,17 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.38</version>
+        </dependency>
+        <!--手动将hotkey引入Maven,详细看README.md介绍-->
+        <dependency>
+            <groupId>com.jd.platform.hotkey</groupId>
+            <artifactId>hotkey-client</artifactId>
+            <version>0.0.4-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>

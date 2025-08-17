@@ -1,6 +1,7 @@
 package com.easen.aicode.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import com.easen.aicode.annotation.HotKeyCache;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.UserConstant;

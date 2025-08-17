@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.DeleteRequest;
+import com.easen.aicode.common.PageRequest;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.constant.UserConstant;
@@ -25,6 +26,7 @@ import com.easen.aicode.model.enums.AppTypeEnum;
 import com.easen.aicode.model.enums.UserRoleEnum;
 import com.easen.aicode.model.vo.AppThumbDetailVO;
 import com.easen.aicode.model.vo.AppVO;
+import com.easen.aicode.annotation.HotKeyCache;
 import com.easen.aicode.ratelimit.annotation.RateLimit;
 import com.easen.aicode.ratelimit.enums.RateLimitType;
 import com.easen.aicode.service.AppService;
@@ -43,6 +45,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.print.attribute.standard.JobHoldUntil;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -185,7 +188,7 @@ public class AppController {
         if (StrUtil.isNotBlank(appName)) {
             ThrowUtils.throwIf(appName.length() > 10, ErrorCode.PARAMS_ERROR, "应用名称不能超过10个字");
         }
-        Long appId = Long.valueOf(appUpdateRequest.getId());
+        Long appId = appUpdateRequest.getId();
         App app = new App();
         app.setId(appId);
         app.setAppName(appUpdateRequest.getAppName());
@@ -207,7 +210,7 @@ public class AppController {
     public BaseResponse<Boolean> deleteMyApp(@RequestBody DeleteRequest deleteRequest) {
         ThrowUtils.throwIf(deleteRequest == null, ErrorCode.PARAMS_ERROR);
 
-        boolean result = appService.deleteApp(Long.valueOf(deleteRequest.getId()));
+        boolean result = appService.deleteApp(deleteRequest.getId());
         return ResultUtils.success(result);
     }
 
@@ -222,10 +225,10 @@ public class AppController {
      */
     @GetMapping("/get")
     @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
+    @HotKeyCache(prefix = "app_detail_")
     public BaseResponse<AppVO> getAppById(String id, HttpServletRequest request) {
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
-
         User loginUser = userService.getLoginUser(request);
         AppVO appVO = appService.getAppVO(app);
         List<String> permissionList = appUserAuthManager.getPermissionList(app, loginUser);
@@ -263,34 +266,33 @@ public class AppController {
     /**
      * 分页查询精选的应用列表（支持根据名称查询，每页最多 20 个）
      *
-     * @param appQueryRequest 查询请求
      * @return 精选应用列表
      */
-    @Cacheable(
-            value = "good_app_page",
-            key = "T(com.easen.aicode.utils.CacheKeyUtils).generateKey(#appQueryRequest)",
-            condition = "#appQueryRequest.pageNum <= 10"
-    )
+//    @Cacheable(
+//            value = "good_app_page",
+//            key = "T(com.easen.aicode.utils.CacheKeyUtils).generateKey(#appQueryRequest)",
+//            condition = "#appQueryRequest.pageNum <= 10"
+//    )
     @PostMapping("/list/featured")
-    public BaseResponse<Page<AppThumbDetailVO>> listFeaturedAppByPage(@RequestBody AppQueryRequest appQueryRequest, HttpServletRequest request) {
-        ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
+    @HotKeyCache(prefix = "featured_")
+    public BaseResponse<Page<AppVO>> listFeaturedAppByPage(@RequestBody PageRequest pageRequest) {
+        ThrowUtils.throwIf(pageRequest == null, ErrorCode.PARAMS_ERROR);
         // 限制每页最多20个
-        Integer pageSize = Math.min(appQueryRequest.getPageSize(), 20);
-        appQueryRequest.setPageSize(pageSize);
+        Integer pageSize = Math.min(pageRequest.getPageSize(), 20);
+        pageRequest.setPageSize(pageSize);
+        AppQueryRequest appQueryRequest = new AppQueryRequest();
         appQueryRequest.setPriority(99);
         appQueryRequest.setIsPublic(AppTypeEnum.PUBLIC.getValue());
-        long pageNum = appQueryRequest.getPageNum();
+
+        long pageNum = pageRequest.getPageNum();
         Page<App> appPage = appService.page(Page.of(pageNum, pageSize),
                 appService.getQueryWrapper(appQueryRequest));
-        
-        // 将 Page<App> 转换为 Page<AppThumbDetailVO>
-        Page<AppThumbDetailVO> appThumbDetailVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
-        List<AppThumbDetailVO> appThumbDetailVOList = appPage.getRecords().stream()
-                .map(this::convertToAppThumbDetailVO)
-                .toList();
-        appThumbDetailVOPage.setRecords(appThumbDetailVOList);
-        
-        return ResultUtils.success(appThumbDetailVOPage);
+
+        Page<AppVO> appVOPage = new Page<>(pageNum, pageSize, appPage.getTotalRow());
+        List<AppVO> appVOList = appService.getAppVOList(appPage.getRecords());
+        appVOPage.setRecords(appVOList);
+
+        return ResultUtils.success(appVOPage);
     }
 
     /**
@@ -409,23 +411,4 @@ public class AppController {
         projectDownloadService.downloadProjectAsZip(sourceDirPath, downloadFileName, response);
     }
 
-    /**
-     * 将 App 实体转换为 AppThumbDetailVO
-     *
-     * @param app 应用实体
-     * @return 应用点赞详细信息视图对象
-     */
-    private AppThumbDetailVO convertToAppThumbDetailVO(App app) {
-        AppThumbDetailVO vo = new AppThumbDetailVO();
-        vo.setId(app.getId());
-        vo.setAppName(app.getAppName());
-        vo.setCover(app.getCover());
-        vo.setDeployKey(app.getDeployKey());
-        vo.setPriority(app.getPriority());
-        vo.setIsTeam(app.getIsTeam());
-        vo.setCreateTime(app.getCreateTime());
-        vo.setUpdateTime(app.getUpdateTime());
-        vo.setThumbCount(app.getThumbCount());
-        return vo;
-    }
 }

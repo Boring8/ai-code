@@ -547,5 +547,5 @@ POST /screenshot/generate  # 手动生成截图
 **AI Code - 让AI代码生成更智能，让团队开发更高效！** 🚀
 
 [⬆ 回到顶部](#ai-code---智能代码生成平台)
-
+![img.png](img.png)
 </div>

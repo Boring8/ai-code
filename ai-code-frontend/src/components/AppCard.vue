@@ -84,7 +84,6 @@
             <template #icon>
               <span v-if="!isLoadingLikeStatus" class="like-icon">{{ isLiked ? '❤️' : '🤍' }}</span>
             </template>
-            {{ likeCount }}
           </a-button>
         </div>
       </div>

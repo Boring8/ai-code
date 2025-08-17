@@ -75,7 +75,6 @@ public class SyncThumb2DBJob {
             String[] userIdAndAppId = userIdAppId.split(StrPool.COLON);
             Long userId = Long.valueOf(userIdAndAppId[0]);
             Long appId = Long.valueOf(userIdAndAppId[1]);
-            log.info("数据：{}", userId + "," + appId + "," );
             // -1 取消点赞，1 点赞
             Integer thumbType = Integer.valueOf(allTempThumbMap.get(userIdAppId).toString());
             if (thumbType == ThumbTypeEnum.INCR.getValue()) {
