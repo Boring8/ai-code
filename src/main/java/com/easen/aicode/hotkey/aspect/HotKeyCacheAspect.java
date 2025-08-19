@@ -1,8 +1,8 @@
-package com.easen.aicode.aspect;
+package com.easen.aicode.hotkey.aspect;
 
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.easen.aicode.annotation.HotKeyCache;
+import com.easen.aicode.hotkey.annotation.HotKeyCache;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
@@ -27,7 +27,7 @@ public class HotKeyCacheAspect {
     /**
      * 环绕通知，处理热键缓存逻辑
      */
-    @Around("@annotation(com.easen.aicode.annotation.HotKeyCache)")
+    @Around("@annotation(com.easen.aicode.hotkey.annotation.HotKeyCache)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
         // 获取方法签名和注解
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();

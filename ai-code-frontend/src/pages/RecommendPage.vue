@@ -118,8 +118,6 @@ const handleLike = async (appId: string , liked: boolean) => {
 
     if (success) {
       message.success(liked ? '点赞成功' : '取消点赞成功')
-      // 重新加载数据以更新点赞状态
-      await loadFeaturedApps()
     } else {
       message.error(liked ? '点赞失败' : '取消点赞失败')
     }

@@ -23,4 +23,13 @@
         </foreach>
     </delete>
 
+    <select id="selectExistList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM thumb
+        WHERE
+        <foreach collection="list" item="item" separator=" OR ">
+            (userId = #{item.userId} AND appId = #{item.appId})
+        </foreach>
+    </select>
+
 </mapper>

@@ -103,13 +103,13 @@ import { toAppIdString } from '../utils/appIdUtils'
 import { isUserLikedApp } from '../api/thumbController'
 
 interface Props {
-  app: API.AppThumbDetailVO
+  app: API.AppVO
   featured?: boolean
 }
 
 interface Emits {
   (e: 'view-chat', appId: string): void
-  (e: 'view-work', app: API.AppThumbDetailVO): void
+  (e: 'view-work', app: API.AppVO): void
   (e: 'team-management', appId: string | number | undefined): void
   (e: 'like', appId: string | number | undefined, liked: boolean): void
 }
@@ -155,13 +155,13 @@ onMounted(() => {
 // 计算显示的时间
 const displayTime = computed(() => {
   // 优先显示修改时间，如果没有就显示创建时间
-  const time = props.app.updateTime || props.app.createTime
-  return formatRelativeTime(time)
+  const time = props.app.deployedTime 
+  return '部署于'+formatRelativeTime(time)
 })
 
 // 计算时间标签
 const timeLabel = computed(() => {
-  return props.app.updateTime ? '修改于' : '创建于'
+  return '创建于'+formatRelativeTime(props.app.createTime)
 })
 
 const handleViewChat = () => {

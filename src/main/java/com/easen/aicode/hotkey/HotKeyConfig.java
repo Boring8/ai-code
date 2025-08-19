@@ -1,4 +1,4 @@
-package com.easen.aicode.config;
+package com.easen.aicode.hotkey;
 
 import com.jd.platform.hotkey.client.ClientStarter;
 import lombok.Data;

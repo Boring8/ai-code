@@ -108,17 +108,6 @@ declare namespace API {
     permissionList?: string[]
   }
 
-  type AppThumbDetailVO = {
-    id?: number
-    appName?: string
-    cover?: string
-    deployKey?: string
-    priority?: number
-    isTeam?: number
-    createTime?: string
-    updateTime?: string
-    thumbCount?: number
-  }
 
   type BaseResponseApp = {
     code?: number

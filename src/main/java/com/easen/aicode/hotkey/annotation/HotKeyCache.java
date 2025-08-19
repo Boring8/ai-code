@@ -1,4 +1,4 @@
-package com.easen.aicode.annotation;
+package com.easen.aicode.hotkey.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

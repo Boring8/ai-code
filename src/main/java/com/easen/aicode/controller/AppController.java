@@ -23,10 +23,8 @@ import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.AppRoleEnum;
 import com.easen.aicode.model.enums.AppTypeEnum;
-import com.easen.aicode.model.enums.UserRoleEnum;
-import com.easen.aicode.model.vo.AppThumbDetailVO;
 import com.easen.aicode.model.vo.AppVO;
-import com.easen.aicode.annotation.HotKeyCache;
+import com.easen.aicode.hotkey.annotation.HotKeyCache;
 import com.easen.aicode.ratelimit.annotation.RateLimit;
 import com.easen.aicode.ratelimit.enums.RateLimitType;
 import com.easen.aicode.service.AppService;
@@ -38,20 +36,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.print.attribute.standard.JobHoldUntil;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * 应用 控制层。

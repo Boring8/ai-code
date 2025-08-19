@@ -14,4 +14,9 @@ import java.util.List;
 public interface ThumbMapper extends BaseMapper<Thumb> {
 
     void deleteBatch(List<Thumb> thumbListDecr);
+
+    /**
+     * 批量查询已存在的 (userId, appId) 点赞记录
+     */
+    List<Thumb> selectExistList(List<Thumb> thumbList);
 }

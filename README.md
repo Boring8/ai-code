@@ -49,6 +49,8 @@ AI Code 是一个现代化的AI驱动代码生成平台，集成了先进的AI�
 | **网页截图功能** | ❌ 不支持 | ✅ **自动生成封面** |
 | **Vue项目构建** | ❌ 不支持 | ✅ **自动npm构建** |
 | **虚拟线程优化** | ❌ 不支持 | ✅ **高性能异步** |
+| **多级缓存架构** | ❌ 不支持 | ✅ **智能缓存体系** |
+| **热点数据优化** | ❌ 不支持 | ✅ **HotKey自动检测** |
 
 ### 🤖 AI代码生成系统
 
@@ -107,6 +109,12 @@ AI Code 是一个现代化的AI驱动代码生成平台，集成了先进的AI�
 - **高并发支持**: 支持大量并发异步任务
 - **应用场景**: 截图生成、Vue项目构建、文件上传等
 
+#### 多级缓存架构
+- **AI服务实例缓存**: 基于Caffeine的本地缓存，最大1000个实例，30分钟过期
+- **Redis分布式缓存**: 存储会话、聊天记忆、点赞状态等分布式数据
+- **HotKey热点缓存**: 自动检测热点数据，本地缓存减少Redis压力
+- **应用数据缓存**: 应用详情、列表分页等数据缓存，提升查询性能
+
 #### 技术架构亮点
 - **Disruptor队列**: 高性能无锁队列处理WebSocket消息
 - **分布式会话**: 基于Redis的分布式会话管理
@@ -125,7 +133,9 @@ AI Code 是一个现代化的AI驱动代码生成平台，集成了先进的AI�
 | **Disruptor** | - | 高性能消息队列 |
 | **MySQL** | 8.0+ | 主数据库 |
 | **MyBatis-Flex** | - | ORM框架 |
-| **Redis** | 6.0+ | 缓存和会话 |
+| **Redis** | 6.0+ | 分布式缓存和会话 |
+| **Caffeine** | - | 本地缓存 |
+| **HotKey** | - | 热点数据缓存 |
 | **Selenium** | - | 网页截图 |
 | **腾讯云COS** | - | 对象存储 |
 
@@ -173,7 +183,8 @@ graph TB
     end
     
     subgraph "数据存储层"
-        REDIS[(Redis缓存<br/>会话管理)]
+        REDIS[(Redis分布式缓存<br/>会话/聊天记忆/点赞)]
+        CACHE[(本地缓存<br/>AI实例/热点数据)]
         MYSQL[(MySQL数据库<br/>用户/应用数据)]
     end
     
@@ -199,6 +210,7 @@ graph TB
     
     WS -->|读写会话| REDIS
     AUTH -->|用户验证| MYSQL
+    AI -->|缓存实例| CACHE
     
     AI -->|异步任务| VT
     VT -->|截图任务| SCREEN
@@ -383,6 +395,31 @@ Thread.ofVirtual().name("vue-builder-" + System.currentTimeMillis())
     });
 ```
 
+#### 多级缓存配置
+```java
+// AI服务实例缓存（Caffeine本地缓存）
+private final Cache<String, AiCodeGeneratorService> serviceCache = Caffeine.newBuilder()
+    .maximumSize(1000)
+    .expireAfterWrite(Duration.ofMinutes(30))
+    .expireAfterAccess(Duration.ofMinutes(10))
+    .build();
+
+// Redis聊天记忆存储
+@Bean
+public RedisChatMemoryStore redisChatMemoryStore() {
+    return RedisChatMemoryStore.builder()
+        .host(host)
+        .port(port)
+        .password(password)
+        .ttl(ttl)
+        .build();
+}
+
+// HotKey热点缓存注解
+@HotKeyCache(prefix = "app_detail_", expireSeconds = 300)
+@HotKeyCache(prefix = "thumb_is_liked:", expireSeconds = 600)
+```
+
 ### WebSocket配置
 
 #### 后端配置
@@ -446,6 +483,13 @@ cos:
   secret-key: ${COS_SECRET_KEY:your_secret_key}
   region: ${COS_REGION:ap-beijing}
   bucket-name: ${COS_BUCKET_NAME:your_bucket}
+
+# HotKey热点缓存配置
+hotkey:
+  app-name: easenAi
+  caffeine-size: 10000
+  push-period: 1000
+  etcd-server: http://localhost:2379
 ```
 
 #### 前端配置 (env.ts)
@@ -539,6 +583,13 @@ POST /screenshot/generate  # 手动生成截图
 - **流畅交互**: 丰富的交互动画和视觉效果
 - **多设备支持**: 响应式设计，支持移动端
 - **智能化**: 减少用户操作复杂度
+
+### 7. 完善的缓存体系
+- **多级缓存**: 本地缓存+分布式缓存+热点缓存
+- **智能缓存**: AI服务实例智能缓存，提升响应速度
+- **热点优化**: HotKey自动检测热点数据，减少Redis压力
+- **缓存预热**: 用户访问时自动预热相关缓存
+- **数据一致性**: 完善的缓存更新和失效机制
 
 ---
 

@@ -15,5 +15,8 @@ public interface ThumbConstant {
      */
     String TEMP_THUMB_KEY_PREFIX = "thumb:temp:%s";
 
-
+    /**
+     * 用户点赞 hotkey key
+     */
+    String USER_THUMB_HOTKEY_PREFIX = "app_thumb_";
 }

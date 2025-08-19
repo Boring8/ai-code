@@ -1,7 +1,6 @@
 package com.easen.aicode.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
-import com.easen.aicode.annotation.HotKeyCache;
 import com.easen.aicode.common.BaseResponse;
 import com.easen.aicode.common.ResultUtils;
 import com.easen.aicode.constant.UserConstant;
@@ -9,14 +8,11 @@ import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.manager.auth.annotation.SaSpaceCheckPermission;
 import com.easen.aicode.manager.auth.model.AppUserPermissionConstant;
 import com.easen.aicode.model.dto.ChatHistoryQueryRequest;
-import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.ChatHistoryVO;
 import com.easen.aicode.service.ChatHistoryService;
 import com.mybatisflex.core.paginate.Page;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import jakarta.annotation.Resource;
-import com.easen.aicode.service.UserService;
 
 import java.time.LocalDateTime;
 
