@@ -29,7 +29,7 @@ public class SaTokenRedisConfig implements WebMvcConfigurer {
         registry.addInterceptor(new SaInterceptor(handle -> {
             // 指定需要登录认证的路径
             SaRouter.match("/**")
-                    .notMatch("/user/login", "/user/register", "/user/get/login")
+                    .notMatch("/user/sendVerify","/user/login", "/user/register", "/user/get/login")
                     .notMatch("/doc.html", "/webjars/**", "/swagger-resources/**", "/v3/api-docs/**")
                     .notMatch("/ws/**") // WebSocket 连接路径
                     .check(r -> StpUtil.checkLogin());
@@ -47,7 +47,7 @@ public class SaTokenRedisConfig implements WebMvcConfigurer {
                 .setAuth(obj -> {
                     // 登录认证 -- 拦截所有路由，并排除 /user/login 等接口
                     SaRouter.match("/**")
-                            .notMatch("/user/login", "/user/register", "/user/get/login")
+                            .notMatch("/user/sendVerify","/user/login", "/user/register", "/user/get/login")
                             .notMatch("/doc.html", "/webjars/**", "/swagger-resources/**", "/v3/api-docs/**")
                             .notMatch("/ws/**") // WebSocket 连接路径
                             .check(r -> StpUtil.checkLogin());

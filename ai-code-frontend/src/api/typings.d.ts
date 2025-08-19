@@ -364,6 +364,7 @@ declare namespace API {
   type UserLoginRequest = {
     userAccount?: string
     userPassword?: string
+    verifyCode?: string
   }
 
   type UserQueryRequest = {

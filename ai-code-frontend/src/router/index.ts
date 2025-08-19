@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '@/pages/HomePage.vue'
 import RecommendPage from '@/pages/RecommendPage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
-import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
 import UserProfilePage from '@/pages/user/UserProfilePage.vue'
 import UserManagePage from '@/pages/admin/UserManagePage.vue'
 import AppManagePage from '@/pages/admin/AppManagePage.vue'
@@ -29,11 +28,7 @@ const router = createRouter({
       name: '用户登录',
       component: UserLoginPage,
     },
-    {
-      path: '/user/register',
-      name: '用户注册',
-      component: UserRegisterPage,
-    },
+
     {
       path: '/user/profile',
       name: '个人信息',

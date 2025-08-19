@@ -11,12 +11,15 @@ import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
+import com.easen.aicode.model.dto.auth.SendVerifyCodeRequest;
 import com.easen.aicode.model.dto.user.*;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.vo.LoginUserVO;
 import com.easen.aicode.model.vo.UserVO;
+import com.easen.aicode.service.AuthService;
 import com.easen.aicode.service.UserService;
 import com.mybatisflex.core.paginate.Page;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -35,34 +38,45 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-
+    @Resource
+    private AuthService authService;
+//    /**
+//     * 用户注册（当前登录已改为“存在即登，不存在自动创建后登录”，该接口暂不开放）
+//     *
+//     * @param userRegisterRequest 用户注册请求
+//     * @return 注册结果
+//     */
+//    @PostMapping("/register")
+//    public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
+//        ThrowUtils.throwIf(userRegisterRequest == null, ErrorCode.PARAMS_ERROR);
+//        String userAccount = userRegisterRequest.getUserAccount();
+//        String userPassword = userRegisterRequest.getUserPassword();
+//        String checkPassword = userRegisterRequest.getCheckPassword();
+//        long result = userService.userRegister(userAccount, userPassword, checkPassword);
+//        return ResultUtils.success(result);
+//    }
     /**
-     * 用户注册
-     *
-     * @param userRegisterRequest 用户注册请求
-     * @return 注册结果
+     * 发送验证码
      */
-    @PostMapping("/register")
-    public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
-        ThrowUtils.throwIf(userRegisterRequest == null, ErrorCode.PARAMS_ERROR);
-        String userAccount = userRegisterRequest.getUserAccount();
-        String userPassword = userRegisterRequest.getUserPassword();
-        String checkPassword = userRegisterRequest.getCheckPassword();
-        long result = userService.userRegister(userAccount, userPassword, checkPassword);
-        return ResultUtils.success(result);
+    @PostMapping("/sendVerify")
+    public BaseResponse<Boolean> sendVerifyCode(@RequestBody SendVerifyCodeRequest requestBody) {
+        if (requestBody == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户ID非法");
+        }
+        authService.sendVerifyCode(requestBody.getEmail());
+        return ResultUtils.success(true);
     }
-
     @PostMapping("/login")
     public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(userLoginRequest == null, ErrorCode.PARAMS_ERROR);
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
-        LoginUserVO loginUserVO = userService.userLogin(userAccount, userPassword, request);
+        String verifyCode = userLoginRequest.getVerifyCode();
+        LoginUserVO loginUserVO = userService.userLogin(userAccount, userPassword, verifyCode, request);
         return ResultUtils.success(loginUserVO);
     }
 
     @GetMapping("/get/login")
-    @SaCheckLogin
     public BaseResponse<LoginUserVO> getLoginUser(HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         return ResultUtils.success(userService.getLoginUserVO(loginUser));
@@ -80,7 +94,6 @@ public class UserController {
      * 创建用户
      */
     @PostMapping("/add")
-
     @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Long> addUser(@RequestBody UserAddRequest userAddRequest) {
         ThrowUtils.throwIf(userAddRequest == null, ErrorCode.PARAMS_ERROR);

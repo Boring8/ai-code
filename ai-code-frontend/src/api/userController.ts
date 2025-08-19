@@ -79,8 +79,8 @@ export async function listUserVoByPage(
   })
 }
 
-/** 此处后端没有提供注释 POST /user/login */
-export async function userLogin(body: API.UserLoginRequest, options?: { [key: string]: any }) {
+/** 用户登录（需要账号和验证码） POST /user/login */
+export async function userLogin(body: { userAccount: string; verifyCode: string }, options?: { [key: string]: any }) {
   return request<API.BaseResponseLoginUserVO>('/user/login', {
     method: 'POST',
     headers: {
@@ -99,12 +99,24 @@ export async function userLogout(options?: { [key: string]: any }) {
   })
 }
 
-/** 此处后端没有提供注释 POST /user/register */
-export async function userRegister(
-  body: API.UserRegisterRequest,
-  options?: { [key: string]: any }
-) {
-  return request<API.BaseResponseLong>('/user/register', {
+// /** 用户注册（当前登录已改为"存在即登，不存在自动创建后登录"，该接口暂不开放） POST /user/register */
+// export async function userRegister(
+//   body: API.UserRegisterRequest,
+//   options?: { [key: string]: any }
+// ) {
+//   return request<API.BaseResponseLong>('/user/register', {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/json',
+//     },
+//     data: body,
+//     ...(options || {}),
+//   })
+// }
+
+/** 此处后端没有提供注释 POST /user/update */
+export async function updateUser(body: API.UserUpdateRequest, options?: { [key: string]: any }) {
+  return request<API.BaseResponseBoolean>('/user/update', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -114,9 +126,17 @@ export async function userRegister(
   })
 }
 
-/** 此处后端没有提供注释 POST /user/update */
-export async function updateUser(body: API.UserUpdateRequest, options?: { [key: string]: any }) {
-  return request<API.BaseResponseBoolean>('/user/update', {
+/** 发送验证码 POST /auth/send-verify-code */
+export async function sendVerifyCode(
+  body: {
+    userId: number
+    email: string
+    nickname?: string
+    scene?: string // REGISTER / PWD_FAIL / LOGIN
+  },
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>('/user/sendVerify', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

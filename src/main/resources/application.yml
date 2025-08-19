@@ -21,6 +21,17 @@ spring:
   session:
     store-type: redis
     timeout: 259200
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: your-qq-email@qq.com
+    password: your-qq-smtp-auth-code
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
 server:
   port: 8123
   servlet:

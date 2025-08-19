@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.RandomUtil;
 import com.easen.aicode.constant.UserConstant;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
@@ -15,10 +16,14 @@ import com.easen.aicode.mapper.UserMapper;
 import com.easen.aicode.model.vo.LoginUserVO;
 import com.easen.aicode.model.vo.UserVO;
 import com.easen.aicode.service.UserService;
+import com.easen.aicode.service.AuthService;
 import com.easen.aicode.utils.DeviceUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.annotation.Resource;
+import org.springframework.data.redis.core.RedisTemplate;
+import java.time.Duration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
@@ -40,6 +45,14 @@ import org.slf4j.LoggerFactory;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
+
+    private static final String PWD_FAIL_COUNT_PREFIX = "verify:pwd:fail:"; // verify:pwd:fail:{userId}
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    private AuthService authService;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
@@ -86,49 +99,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
-        // 1. 校验
-        if (StrUtil.hasBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
+    public LoginUserVO userLogin(String userAccount, String userPassword, String verifyCode, HttpServletRequest request) {
+        // 1. 基础校验（验证码登录：不再校验密码）
+        if (StrUtil.isBlank(userAccount)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能为空");
         }
-        if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号错误");
-        }
-        if (userPassword.length() < 8) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
-        }
-        // 2. 加密
-        String encryptPassword = getEncryptPassword(userPassword);
-        // 查询用户是否存在
-        QueryWrapper queryWrapper = new QueryWrapper();
-        queryWrapper.eq("userAccount", userAccount);
-        queryWrapper.eq("userPassword", encryptPassword);
-        User user = this.mapper.selectOneByQuery(queryWrapper);
-        // 用户不存在
-        if (user == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
+        String reqCode = StrUtil.isBlank(verifyCode) ? request.getParameter("verifyCode") : verifyCode;
+        if (StrUtil.isBlank(reqCode)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "验证码不能为空");
         }
 
-        // 获取设备信息
+        // 2. 查询用户（以账号=邮箱为准）
+        QueryWrapper onlyAccount = new QueryWrapper();
+        onlyAccount.eq("userAccount", userAccount);
+        User user = this.mapper.selectOneByQuery(onlyAccount);
+        if (user == null) {
+            // 不存在则自动创建用户（默认角色 user，昵称为邮箱）
+            user = new User();
+            user.setUserAccount(userAccount);
+            user.setUserName(userAccount);
+            user.setUserRole(UserRoleEnum.USER.getValue());
+            // 密码字段非空，写入随机占位密码（不可用于登录）
+            String placeholder = RandomUtil.randomString(16);
+            user.setUserPassword(getEncryptPassword(placeholder));
+            boolean created = this.save(user);
+            if (!created) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "自动创建用户失败");
+            }
+        }
+
+        // 3. 校验验证码
+        boolean ok = authService.verifyCode(user.getId(), reqCode);
+        if (!ok) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "验证码校验未通过");
+        }
+
+        // 4. 设备信息与登录
         String device = DeviceUtils.getRequestDevice(request);
-        log.info("用户登录 - 用户ID: {}, 设备类型: {}, User-Agent: {}", 
-                user.getId(), device, request.getHeader("User-Agent"));
-        
-        // 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
+
         StpKit.TEAM.login(user.getId());
         StpKit.TEAM.getSession().set(UserConstant.USER_LOGIN_STATE, user);
-
-        // Sa-Token 登录，并指定设备，同端登录互斥
         StpUtil.login(user.getId(), device);
-        
-        // 获取生成的token
-        String tokenValue = StpUtil.getTokenValue();
-        log.info("用户登录成功 - 用户ID: {}, Token: {}, 设备: {}", user.getId(), tokenValue, device);
-        
-        // 将用户信息存储到会话中
+        log.info("用户登录成功 - 用户ID: {}, 设备: {}", user.getId(), device);
         StpUtil.getSession().set(USER_LOGIN_STATE, user);
 
-        // 4. 获得脱敏后的用户信息
+        try {
+            redisTemplate.delete(PWD_FAIL_COUNT_PREFIX + user.getId());
+        } catch (Exception ignore) {
+        }
+
+        // 6. 返回脱敏信息
         return this.getLoginUserVO(user);
     }
 

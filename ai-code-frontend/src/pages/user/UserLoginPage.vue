@@ -6,7 +6,7 @@
           <span class="logo-text">AI Code</span>
         </div>
         <h1 class="login-title">用户登录</h1>
-        <p class="login-subtitle">欢迎使用 AI Code 系统</p>
+        <p class="login-subtitle">输入QQ邮箱和验证码即可登录</p>
       </div>
       
       <a-form 
@@ -18,39 +18,55 @@
       >
         <a-form-item 
           name="userAccount" 
-          :rules="[{ required: true, message: '请输入账号' }]"
+          :rules="[
+            { required: true, message: '请输入QQ邮箱' },
+            { type: 'email', message: '请输入正确的邮箱格式' }
+          ]"
           class="form-item"
         >
           <a-input 
             v-model:value="formState.userAccount" 
-            placeholder="请输入账号"
+            placeholder="请输入QQ邮箱"
             size="large"
             class="form-input"
           >
             <template #prefix>
-              <span class="input-icon">👤</span>
+              <span class="input-icon">📧</span>
             </template>
           </a-input>
         </a-form-item>
-        
-        <a-form-item
-          name="userPassword"
+
+        <a-form-item 
+          name="verifyCode" 
           :rules="[
-            { required: true, message: '请输入密码' },
-            { min: 8, message: '密码长度不能小于 8 位' },
+            { required: true, message: '请输入验证码' },
+            { len: 6, message: '验证码为6位数字' }
           ]"
           class="form-item"
         >
-          <a-input-password 
-            v-model:value="formState.userPassword" 
-            placeholder="请输入密码"
-            size="large"
-            class="form-input"
-          >
-            <template #prefix>
-              <span class="input-icon">🔒</span>
-            </template>
-          </a-input-password>
+          <div class="verify-code-container">
+            <a-input 
+              v-model:value="formState.verifyCode" 
+              placeholder="请输入6位验证码"
+              size="large"
+              class="verify-code-input"
+              maxlength="6"
+            >
+              <template #prefix>
+                <span class="input-icon">🔐</span>
+              </template>
+            </a-input>
+            <a-button 
+              type="primary" 
+              size="large"
+              class="send-code-btn"
+              :loading="sendingCode"
+              :disabled="!canSendCode || countdown > 0"
+              @click="handleSendVerifyCode"
+            >
+              {{ countdown > 0 ? `${countdown}s` : '发送验证码' }}
+            </a-button>
+          </div>
         </a-form-item>
         
         <a-form-item class="form-item">
@@ -67,9 +83,8 @@
       </a-form>
       
       <div class="login-footer">
-        <p class="register-tip">
-          还没有账号？
-          <RouterLink to="/user/register" class="register-link">立即注册</RouterLink>
+        <p class="login-tip">
+          首次登录将自动创建账户
         </p>
       </div>
     </div>
@@ -77,20 +92,69 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref } from 'vue'
-import { userLogin } from '@/api/userController.ts'
+import { reactive, ref, computed, onUnmounted } from 'vue'
+import { userLogin, sendVerifyCode } from '@/api/userController.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 
-const formState = reactive<API.UserLoginRequest>({
+const formState = reactive({
   userAccount: '',
-  userPassword: '',
+  verifyCode: '',
 })
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
 const loading = ref(false)
+const sendingCode = ref(false)
+const countdown = ref(0)
+let countdownTimer: NodeJS.Timeout | null = null
+
+// 计算是否可以发送验证码
+const canSendCode = computed(() => {
+  return formState.userAccount && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.userAccount)
+})
+
+/**
+ * 发送验证码
+ */
+const handleSendVerifyCode = async () => {
+  if (!canSendCode.value || countdown.value > 0) return
+  
+  sendingCode.value = true
+  try {
+    const res = await sendVerifyCode({
+      email: formState.userAccount,
+    })
+    
+    if (res.data.code === 0) {
+      message.success('验证码已发送到您的邮箱')
+      startCountdown()
+    } else {
+      message.error('发送验证码失败：' + res.data.message)
+    }
+  } catch (error) {
+    message.error('发送验证码失败，请重试')
+  } finally {
+    sendingCode.value = false
+  }
+}
+
+/**
+ * 开始倒计时
+ */
+const startCountdown = () => {
+  countdown.value = 60
+  countdownTimer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      if (countdownTimer) {
+        clearInterval(countdownTimer)
+        countdownTimer = null
+      }
+    }
+  }, 1000)
+}
 
 /**
  * 提交表单
@@ -99,7 +163,12 @@ const loading = ref(false)
 const handleSubmit = async (values: any) => {
   loading.value = true
   try {
-    const res = await userLogin(values)
+    // 登录时需要验证码
+    const res = await userLogin({ 
+      userAccount: values.userAccount,
+      verifyCode: values.verifyCode
+    } as API.UserLoginRequest)
+    
     // 登录成功，把登录态保存到全局状态中
     if (res.data.code === 0 && res.data.data) {
       await loginUserStore.fetchLoginUser()
@@ -117,6 +186,13 @@ const handleSubmit = async (values: any) => {
     loading.value = false
   }
 }
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+  }
+})
 </script>
 
 <style scoped>
@@ -217,6 +293,51 @@ const handleSubmit = async (values: any) => {
   color: #999;
 }
 
+.verify-code-container {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.verify-code-input {
+  flex: 1;
+  border-radius: 8px;
+  border: 1px solid #d9e7f5;
+  background: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.verify-code-input:focus,
+.verify-code-input:hover {
+  border-color: #1890ff;
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.send-code-btn {
+  height: 40px;
+  border-radius: 8px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  min-width: 100px;
+}
+
+.send-code-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #73d13d 0%, #95de64 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
+}
+
+.send-code-btn:disabled {
+  background: #f5f5f5;
+  color: #bfbfbf;
+  cursor: not-allowed;
+}
+
 .login-btn {
   width: 100%;
   height: 48px;
@@ -239,21 +360,10 @@ const handleSubmit = async (values: any) => {
   text-align: center;
 }
 
-.register-tip {
+.login-tip {
   color: #666;
   font-size: 14px;
   margin: 0;
-}
-
-.register-link {
-  color: #1890ff;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.3s ease;
-}
-
-.register-link:hover {
-  color: #40a9ff;
 }
 
 /* 响应式设计 */
@@ -272,6 +382,16 @@ const handleSubmit = async (values: any) => {
   
   .login-subtitle {
     font-size: 14px;
+  }
+  
+  .verify-code-container {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .send-code-btn {
+    width: 100%;
+    height: 40px;
   }
 }
 </style>

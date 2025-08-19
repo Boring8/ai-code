@@ -18,4 +18,9 @@ public class UserLoginRequest implements Serializable {
      * 密码
      */
     private String userPassword;
+
+    /**
+     * 验证码（增强登录时可用）
+     */
+    private String verifyCode;
 }

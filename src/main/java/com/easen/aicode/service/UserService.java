@@ -47,7 +47,7 @@ public interface UserService extends IService<User> {
      * @param request
      * @return 脱敏后的用户信息
      */
-    LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request);
+    LoginUserVO userLogin(String userAccount, String userPassword, String verifyCode, HttpServletRequest request);
     /**
      * 获取当前登录用户
      *
@@ -84,4 +84,5 @@ public interface UserService extends IService<User> {
      * @return 用户对象
      */
     User getUserByUserAccount(String userAccount);
+
 }
