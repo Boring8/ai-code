@@ -8,20 +8,24 @@ import com.easen.aicode.model.vo.AppThumbVO;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 
+import java.util.List;
+import java.util.Set;
+
 /**
- *  服务层。
+ * 点赞与排行榜 服务层。
+ *
+ * <p>提供应用点赞、取消点赞、查询点赞状态以及获取点赞排行榜等能力。</p>
  *
  * @author <a>easen</a>
  */
 public interface ThumbService extends IService<Thumb> {
 
     /**
-     * 分页查询应用，按点赞数从高到低排序
+     * 获取应用点赞排行榜列表
      *
-     * @param pageRequest 分页请求对象
-     * @return 分页结果
+     * @return 应用点赞信息列表（包含应用及其点赞数等聚合信息）
      */
-    Page<AppThumbVO> getAppThumbPage(PageRequest pageRequest);
+    List<AppThumbVO> appThumbList();
 
 
     /**

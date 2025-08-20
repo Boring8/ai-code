@@ -133,7 +133,7 @@ const fetchAppInfo = async () => {
   
   loading.value = true
   try {
-    const res = await getAppById({ id: appId.value })
+    const res = await getAppById({ appId: appId.value as string })
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
     } else {

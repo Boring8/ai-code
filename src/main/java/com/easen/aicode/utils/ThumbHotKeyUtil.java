@@ -5,7 +5,9 @@ import com.easen.aicode.mapper.ThumbMapper;
 import com.easen.aicode.model.entity.Thumb;
 import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
@@ -13,6 +15,8 @@ import jakarta.annotation.Resource;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import static com.easen.aicode.constant.ThumbConstant.RANK_KEY;
 
 /**
  * 点赞热点数据处理工具类
@@ -40,7 +44,7 @@ public class ThumbHotKeyUtil {
 
         String userThumbKey = ThumbConstant.USER_THUMB_KEY_PREFIX + userId;
 
-        String userThumbHotKey = ThumbConstant.USER_THUMB_HOTKEY_PREFIX + userId + "_" + appIdStr;
+        String userThumbHotKey = ThumbConstant.APP_THUMB_HOTKEY_PREFIX + userId + "_" + appIdStr;
         // 1) 先尝试从热键本地缓存获取
         if (JdHotKeyStore.isHotKey(userThumbHotKey)) {
             Object cached = JdHotKeyStore.get(userThumbHotKey);
@@ -71,6 +75,8 @@ public class ThumbHotKeyUtil {
         String appIdStr = appId.toString();
         // 先存入 Redis（使用标志位 1L）
         redisTemplate.opsForHash().put(userThumbKey, appIdStr, 1L);
+        //排行榜处理
+        redisTemplate.opsForZSet().incrementScore(RANK_KEY, appId, 1);
     }
 
     /**
@@ -84,6 +90,8 @@ public class ThumbHotKeyUtil {
         String appIdStr = appId.toString();
         // 从 Redis 删除点赞记录
         redisTemplate.opsForHash().delete(userThumbKey, appIdStr);
+        //排行榜处理
+        redisTemplate.opsForZSet().incrementScore(RANK_KEY, appId, -1);
     }
 
 

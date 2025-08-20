@@ -1,19 +1,25 @@
 // @ts-ignore
 /* eslint-disable */
-import request from '@/request'
+import request from '../request'
 
 /** 分页查询应用，按点赞数从高到低排序 GET /thumb/appThumbPage */
-export async function appThumbPage(
+export async function appThumbSet(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.appThumbPageParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageAppThumbVO>('/thumb/appThumbPage', {
+  return request<API.AppThumbVO>('/thumb/appThumbSet', {
     method: 'GET',
-    params: {
-      ...params,
-    },
-    ...(options || {}),
+    ...(options || {})
+  })
+}
+
+/** 获取热门应用列表（含名称与点赞数） GET /thumb/appThumbList */
+export async function appThumbList(
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseAppThumbVOArray>('/thumb/appThumbList', {
+    method: 'GET',
+    ...(options || {})
   })
 }
 

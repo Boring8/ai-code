@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listFeaturedAppByPage } from '@/api/appController'
-import { likeApp, unlikeApp, appThumbPage } from '../api/thumbController'
-import { getDeployUrl } from '@/config/env'
-import AppCard from '@/components/AppCard.vue'
+import { listFeaturedAppByPage } from '../api/appController'
+import { likeApp, unlikeApp, appThumbList } from '../api/thumbController'
+import { getDeployUrl } from '../config/env'
+import AppCard from '../components/AppCard.vue'
 import { message } from 'ant-design-vue'
+
+// 防抖函数
+const debounce = (func: Function, delay: number) => {
+  let timeoutId: NodeJS.Timeout
+  return (...args: any[]) => {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => func.apply(null, args), delay)
+  }
+}
 
 const router = useRouter()
 
@@ -19,12 +28,6 @@ const featuredAppsPage = reactive({
 
 // 热门app数据
 const hotApps = ref<API.AppThumbVO[]>([])
-const hotAppsPage = reactive({
-  current: 1,
-  pageSize: 7,
-  total: 0,
-})
-
 // 加载精选应用
 const loadFeaturedApps = async () => {
   try {
@@ -52,19 +55,9 @@ const loadFeaturedApps = async () => {
 // 加载热门应用
 const loadHotApps = async () => {
   try {
-    const res = await appThumbPage({
-      pageNum: hotAppsPage.current,
-      pageSize: hotAppsPage.pageSize,
-      sortField: 'thumbNum',
-      sortOrder: 'desc',
-    })
-
-    
-    if (res.data.code === 0 && res.data.data) {
-      hotApps.value = res.data.data.records || []
-      hotAppsPage.total = res.data.data.totalRow || 0
-    } else {
-      console.error('热门应用接口返回错误：', res.data)
+    const res = await appThumbList()
+    if (res.data && res.data.data) {
+      hotApps.value = res.data.data
     }
   } catch (error) {
     console.error('加载热门应用失败：', error)
@@ -100,20 +93,19 @@ const viewHotApp = (appId: number | undefined) => {
   }
 }
 
-// 处理点赞/取消点赞
-const handleLike = async (appId: string , liked: boolean) => {
-
+// 实际的点赞处理函数
+const performLike = async (appId: string, liked: boolean) => {
   try {
     let success = false
     if (liked) {
       // 点赞
       const res = await likeApp({ appId: appId })
-      success = res.data.code === 0 && res.data.data
+      success = res.data.code === 0 && (res.data.data === true)
     
     } else {
       // 取消点赞
       const res = await unlikeApp({ appId: appId })
-      success = res.data.code === 0 && res.data.data
+      success = res.data.code === 0 && (res.data.data === true)
     }
 
     if (success) {
@@ -126,6 +118,9 @@ const handleLike = async (appId: string , liked: boolean) => {
     message.error('操作失败，请稍后重试')
   }
 }
+
+// 防抖版本的点赞处理函数（500ms防抖）
+const handleLike = debounce(performLike, 500)
 
 // 页面加载时获取数据
 onMounted(() => {
@@ -190,7 +185,7 @@ onMounted(() => {
           <div class="sidebar-section">
             <div class="sidebar-header">
               <h3 class="sidebar-title">热门app榜</h3>
-              <a href="#" class="more-link">更多</a>
+              <a href="#" class="more-link"></a>
             </div>
             <div class="hot-topics-list">
               <div

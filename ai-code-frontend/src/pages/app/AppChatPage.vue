@@ -764,7 +764,7 @@ const fetchAppInfo = async () => {
 
   try {
     // 使用智能AppId处理，大数值保持字符串格式，小数值转换为number
-    const res = await getAppById({ id: getAppIdForApi(id) as string })
+    const res = await getAppById({ appId: id as string })
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
 

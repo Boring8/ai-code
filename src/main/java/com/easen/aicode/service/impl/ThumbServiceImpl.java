@@ -16,7 +16,11 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +28,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static com.easen.aicode.constant.ThumbConstant.RANK_KEY;
 
 
 /**
@@ -42,30 +49,31 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb> implements
     private AppService appService;
 
     @Resource
-    private final RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Resource
     private ThumbHotKeyUtil thumbHotKeyUtil;
 
-    public ThumbServiceImpl(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
-    }
-
 
     @Override
-//    @HotKeyCache(prefix = "app_thumb_page:", keyParamIndex = 0, keyField = "pageNum", expireSeconds = 300)
-    public Page<AppThumbVO> getAppThumbPage(PageRequest pageRequest) {
-        // 创建分页对象
-        Page<AppThumbVO> page = new Page<>(pageRequest.getPageNum(), pageRequest.getPageSize());
-
-        // 使用 QueryWrapper 构建查询，直接使用应用表中的 thumbCount 字段
-        QueryWrapper queryWrapper = QueryWrapper.create()
-                .select("a.id, a.appName, a.thumbCount")
-                .from("app").as("a")
-                .where("a.isDelete = 0")
-                .orderBy("a.thumbCount DESC, a.id DESC");
-
-        return this.pageAs(page, queryWrapper, AppThumbVO.class);
+    public List<AppThumbVO> appThumbList() {
+        Set<ZSetOperations.TypedTuple<Object>> set = redisTemplate.opsForZSet().reverseRangeWithScores(RANK_KEY, 0, 7);
+        return set.stream()
+                .map(tuple -> {
+                    Long appId = (Long) tuple.getValue();
+                    Double score = tuple.getScore();
+                        App app = appService.getAppByIdWithHotKey((appId));
+                        if (app == null) {
+                            return null;
+                        }
+                        AppThumbVO appThumbVO = new AppThumbVO();
+                        appThumbVO.setId(app.getId());
+                        appThumbVO.setAppName(app.getAppName());
+                        appThumbVO.setThumbCount(score.intValue());
+                        return appThumbVO;
+                })
+                .filter(appThumbVO -> appThumbVO != null)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
@@ -101,6 +109,7 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb> implements
         // 使用工具类检查用户是否已点赞应用
         return thumbHotKeyUtil.isUserLikedApp(userId, appId);
     }
+
 
 
     /**

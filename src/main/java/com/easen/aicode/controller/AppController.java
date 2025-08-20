@@ -30,6 +30,7 @@ import com.easen.aicode.ratelimit.enums.RateLimitType;
 import com.easen.aicode.service.AppService;
 import com.easen.aicode.service.ProjectDownloadService;
 import com.easen.aicode.service.UserService;
+import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.mybatisflex.core.paginate.Page;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,6 +47,8 @@ import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+
+import static com.easen.aicode.constant.ThumbConstant.APP_ID_HOTKEY_PREFIX;
 
 /**
  * 应用 控制层。
@@ -144,8 +147,9 @@ public class AppController {
     @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_DEPLOY)
     public BaseResponse<String> deployApp(@RequestBody AppDeployRequest appDeployRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appDeployRequest == null, ErrorCode.PARAMS_ERROR);
-        Long appId = Long.getLong(appDeployRequest.getAppId());
-        ThrowUtils.throwIf( appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 不能为空");
+        Long appId = appDeployRequest.getAppId();
+        ThrowUtils.throwIf(appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 不能为空");
+
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
         // 调用服务部署应用
@@ -189,6 +193,9 @@ public class AppController {
         app.setIsPublic(appUpdateRequest.getIsPublic());
         app.setEditTime(LocalDateTime.now());
         boolean result = appService.updateById(app);
+        if (result){
+            appService.removeByIdWithHotKey(app.getId());
+        }
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
@@ -205,7 +212,11 @@ public class AppController {
         ThrowUtils.throwIf(deleteRequest == null, ErrorCode.PARAMS_ERROR);
 
         boolean result = appService.deleteApp(deleteRequest.getId());
+        if (result){
+            appService.removeByIdWithHotKey(deleteRequest.getId());
+        }
         return ResultUtils.success(result);
+
     }
 
     @Resource
@@ -214,14 +225,14 @@ public class AppController {
     /**
      * 根据 id 查看应用详情
      *
-     * @param id 应用id
+     * @param appId 应用id
      * @return 应用详情
      */
     @GetMapping("/get")
-    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
-    @HotKeyCache(prefix = "app_detail_")
-    public BaseResponse<AppVO> getAppById(String id, HttpServletRequest request) {
-        App app = appService.getById(id);
+//    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
+    public BaseResponse<AppVO> getAppById(@RequestParam Long appId, HttpServletRequest request) {
+        ThrowUtils.throwIf(appId == null, ErrorCode.NOT_FOUND_ERROR);
+        App app = appService.getAppByIdWithHotKey(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
         User loginUser = userService.getLoginUser(request);
         AppVO appVO = appService.getAppVO(app);
@@ -300,6 +311,9 @@ public class AppController {
     public BaseResponse<Boolean> deleteApp(@RequestBody DeleteRequest deleteRequest) {
         ThrowUtils.throwIf(deleteRequest == null || deleteRequest.getId() <= 0, ErrorCode.PARAMS_ERROR);
         boolean result = appService.deleteApp(deleteRequest.getId());
+        if (result){
+            appService.removeByIdWithHotKey(deleteRequest.getId());
+        }
         return ResultUtils.success(result);
     }
 
@@ -327,6 +341,9 @@ public class AppController {
         app.setEditTime(LocalDateTime.now());
         app.setPriority(appUpdateRequest.getPriority());
         boolean result = appService.updateById(app);
+        if (result){
+            appService.removeByIdWithHotKey(app.getId());
+        }
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
@@ -363,7 +380,7 @@ public class AppController {
     @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<App> getAppByIdAdmin(long id) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
-        App app = appService.getById(id);
+        App app = appService.getAppByIdWithHotKey(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
         AppVO appVO = appService.getAppVO(app);
         List<String> permissionList = appUserAuthManager.getPermissionsByRole(AppRoleEnum.ADMIN.getValue());
@@ -388,7 +405,7 @@ public class AppController {
         // 1. 基础校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
         // 2. 查询应用信息
-        App app = appService.getById(appId);
+        App app = appService.getAppByIdWithHotKey(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
 
         // 4. 构建应用代码目录路径（生成目录，非部署目录）

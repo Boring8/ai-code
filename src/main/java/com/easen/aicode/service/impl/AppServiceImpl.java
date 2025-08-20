@@ -7,6 +7,7 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.ai.*;
 import com.easen.aicode.constant.AppConstant;
+import com.easen.aicode.constant.ThumbConstant;
 import com.easen.aicode.core.AiCodeGeneratorFacade;
 import com.easen.aicode.core.AppResourceCleaner;
 import com.easen.aicode.core.builder.VueProjectBuilder;
@@ -23,6 +24,7 @@ import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.*;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.*;
+import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
@@ -39,6 +41,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import com.easen.aicode.model.vo.AppThumbDetailVO;
 import com.easen.aicode.service.ThumbService;
 
@@ -77,6 +80,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 
+
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser, List<String> images) {
         // 1. 参数校验
@@ -98,13 +102,13 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
         log.info("chatToGenCode AI回复:  appId:{}", appId);
-        
+
         // 5. 构建包含图片的完整消息
         String fullMessage = buildMessageWithImages(message, images);
-        
+
         // 6. 在调用 AI 前，先保存用户消息到数据库中
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(), images);
-        
+
         // 7. 调用 AI 生成代码（流式）
         Flux<String> codeStream;
         if (loginUser.getUserRole().equals(UserRoleEnum.MEMBER.getValue())) {
@@ -118,7 +122,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
 
     }
-    
+
     /**
      * 构建包含图片的完整消息
      *
@@ -130,16 +134,16 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (CollUtil.isEmpty(images)) {
             return message;
         }
-        
+
         StringBuilder fullMessage = new StringBuilder(message);
-        
+
         // 添加图片信息到消息中
         for (String image : images) {
             if (StrUtil.isNotBlank(image)) {
                 fullMessage.append("\n\n图片: ").append(image);
             }
         }
-        
+
         return fullMessage.toString();
     }
 
@@ -367,9 +371,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
         Integer isPublic = appQueryRequest.getIsPublic();
-        
+
         QueryWrapper queryWrapper = QueryWrapper.create();
-        
+
         // 只在参数不为空时才添加条件
         if (id != null) {
             queryWrapper.eq("id", id);
@@ -401,5 +405,32 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         return queryWrapper;
     }
 
+    /**
+     * 先从 HotKey 读取 App 数据，如果没有则查询数据库并回填 HotKey。
+     * HotKey 的 key 前缀为 APP_ID_HOTKEY_PREFIX。
+     *
+     * @param appId 应用 ID
+     * @return App 实体，可能为 null
+     */
+    public App getAppByIdWithHotKey(Long appId) {
+        String cacheKey = ThumbConstant.APP_ID_HOTKEY_PREFIX + appId;
+        if (JdHotKeyStore.isHotKey(cacheKey)) {
+            Object cached = JdHotKeyStore.get(cacheKey);
+            if (cached instanceof App) {
+                return (App) cached;
+            }
+        }
+        App app = this.getById(appId);
+        if (app != null) {
+            JdHotKeyStore.smartSet(cacheKey, app);
+        }
+        return app;
+    }
+
+    @Override
+    public void removeByIdWithHotKey(Long appId) {
+        String cacheKey = ThumbConstant.APP_ID_HOTKEY_PREFIX + appId;
+        JdHotKeyStore.remove(cacheKey);
+    }
 
 }

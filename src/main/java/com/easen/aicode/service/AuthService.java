@@ -3,14 +3,16 @@ package com.easen.aicode.service;
 import com.easen.aicode.common.BaseResponse;
 
 /**
- * 验证码服务
+ * 验证码服务。
+ *
+ * <p>负责发送与校验验证码，可用于登录、重置密码等场景。</p>
  */
 public interface AuthService {
 
     /**
      * 发送验证码
      *
-     * @param email   必填，接收邮箱（默认认为 userAccount 是邮箱）
+     * @param email 接收验证码的邮箱地址
      */
     void sendVerifyCode( String email);
 

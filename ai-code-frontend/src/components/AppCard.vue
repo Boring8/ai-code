@@ -103,7 +103,7 @@ import { toAppIdString } from '../utils/appIdUtils'
 import { isUserLikedApp } from '../api/thumbController'
 
 interface Props {
-  app: API.AppVO
+  app: API.AppVO | API.AppThumbDetailVO
   featured?: boolean
 }
 
@@ -122,7 +122,7 @@ const emit = defineEmits<Emits>()
 
 // 点赞状态 - 初始化为false，等待API检查结果
 const isLiked = ref(false)
-const likeCount = ref(props.app.thumbCount || 0) // 从 props 中获取点赞数
+const likeCount = ref((props.app as API.AppThumbDetailVO).thumbCount || 0) // 从 props 中获取点赞数（仅精选卡片才有）
 const isLoadingLikeStatus = ref(false)
 
 // 检查用户是否已点赞该应用

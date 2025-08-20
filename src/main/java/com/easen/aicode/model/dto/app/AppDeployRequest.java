@@ -12,8 +12,7 @@ public class AppDeployRequest implements Serializable {
     /**
      * 应用 id
      */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private String appId;
+    private Long appId;
 
     private static final long serialVersionUID = 1L;
 }

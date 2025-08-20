@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  *  控制层。
@@ -35,20 +36,13 @@ public class ThumbController {
 
 
     /**
-     * 分页查询应用，按点赞数从高到低排序
+     * 排行，按点赞数从高到低排序
      *
-     * @param pageRequest 分页请求对象
      * @return 分页结果，包含应用id、应用名称、点赞数
      */
-    @GetMapping("/appThumbPage")
-    public BaseResponse<Page<AppThumbVO>> appThumbPage(PageRequest pageRequest) {
-        // 参数验证
-        ThrowUtils.throwIf(pageRequest == null, ErrorCode.PARAMS_ERROR, "分页参数不能为空");
-        
-        // 限制每页最多50个
-        Integer pageSize = Math.min(pageRequest.getPageSize(), 20);
-        pageRequest.setPageSize(pageSize);
-        Page<AppThumbVO> result = thumbService.getAppThumbPage(pageRequest);
+    @GetMapping("/appThumbList")
+    public BaseResponse<List<AppThumbVO>> appThumbList() {
+        List<AppThumbVO> result = thumbService.appThumbList();
         return ResultUtils.success(result);
     }
 

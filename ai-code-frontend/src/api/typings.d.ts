@@ -108,6 +108,11 @@ declare namespace API {
     permissionList?: string[]
   }
 
+  // 精选应用详情：在 AppVO 的基础上包含点赞数
+  type AppThumbDetailVO = AppVO & {
+    thumbCount?: number
+  }
+
 
   type BaseResponseApp = {
     code?: number
@@ -187,6 +192,12 @@ declare namespace API {
     message?: string
   }
 
+  type BaseResponseAppThumbVOArray = {
+    code?: number
+    data?: AppThumbVO[]
+    message?: string
+  }
+
   type BaseResponseUser = {
     code?: number
     data?: User
@@ -251,7 +262,7 @@ declare namespace API {
   }
 
   type getAppByIdParams = {
-    id: string
+    appId: string
   }
 
   type getAppTeamMembersParams = {
@@ -404,7 +415,7 @@ declare namespace API {
   type AppThumbVO = {
     appId?: number
     appName?: string
-    thumbNum?: number
+    thumbCount?: number
   }
 
   type PageAppThumbVO = {

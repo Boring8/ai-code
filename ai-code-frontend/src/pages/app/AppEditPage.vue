@@ -216,7 +216,7 @@ const fetchAppInfo = async () => {
 
   loading.value = true
   try {
-    const res = await getAppById({ id: id as unknown as number })
+    const res = await getAppById({ appId: id  })
     if (res.data.code === 0 && res.data.data) {
       const current = res.data.data
       appInfo.value = current
