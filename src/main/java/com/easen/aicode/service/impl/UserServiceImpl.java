@@ -23,7 +23,9 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisTemplate;
+
 import java.time.Duration;
+
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
@@ -33,6 +35,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.easen.aicode.constant.UserConstant.USER_LOGIN_STATE;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +48,6 @@ import org.slf4j.LoggerFactory;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
-
-    private static final String PWD_FAIL_COUNT_PREFIX = "verify:pwd:fail:"; // verify:pwd:fail:{userId}
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -144,7 +145,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         StpUtil.getSession().set(USER_LOGIN_STATE, user);
 
         try {
-            redisTemplate.delete(PWD_FAIL_COUNT_PREFIX + user.getId());
+            // 清理验证码相关key
+            redisTemplate.delete("verify:code:" + userAccount);
+            redisTemplate.delete("verify:fail:" + userAccount);
         } catch (Exception ignore) {
         }
 

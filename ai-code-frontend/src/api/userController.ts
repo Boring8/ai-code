@@ -126,6 +126,18 @@ export async function updateUser(body: API.UserUpdateRequest, options?: { [key: 
   })
 }
 
+/** 管理端更新用户信息 POST /user/update/admin */
+export async function updateUserAdmin(body: API.UserUpdateRequest, options?: { [key: string]: any }) {
+  return request<API.BaseResponseBoolean>('/user/update/admin', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
 /** 发送验证码 POST /auth/send-verify-code */
 export async function sendVerifyCode(
   body: {

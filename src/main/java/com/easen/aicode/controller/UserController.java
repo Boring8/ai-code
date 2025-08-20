@@ -154,8 +154,22 @@ public class UserController {
     /**
      * 更新用户
      */
-    @PostMapping("/update")
+    @PostMapping("/update/admin")
     @SaCheckRole(UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> updateUserAdmin(@RequestBody UserUpdateAdminRequest userUpdateRequest) {
+        if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User user = new User();
+        BeanUtil.copyProperties(userUpdateRequest, user);
+        boolean result = userService.updateById(user);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+    /**
+     * 更新用户
+     */
+    @PostMapping("/update")
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -166,7 +180,6 @@ public class UserController {
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
-
     /**
      * 删除用户
      */

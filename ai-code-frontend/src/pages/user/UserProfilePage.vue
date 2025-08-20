@@ -13,9 +13,13 @@
               :src="loginUserStore.loginUser.userAvatar" 
               :size="120"
               class="profile-avatar"
-            />
+            >
+              <template #icon>
+                <UserOutlined />
+              </template>
+            </a-avatar>
             <div class="avatar-info">
-              <h2>{{ loginUserStore.loginUser.userName || '未设置用户名' }}</h2>
+              <h2>{{ loginUserStore.loginUser.userName || loginUserStore.loginUser.userAccount || '未设置昵称' }}</h2>
               <p class="user-role">{{ formatUserRole(loginUserStore.loginUser.userRole) }}</p>
             </div>
           </div>
@@ -32,19 +36,21 @@
             >
               <a-form-item label="用户名">
                 <a-input 
+                  :value="loginUserStore.loginUser.userAccount" 
+                  placeholder="用户名"
+                  disabled
+                  class="readonly-input"
+                />
+              </a-form-item>
+              
+              <a-form-item label="昵称">
+                <a-input 
                   v-model:value="formData.userName" 
-                  placeholder="请输入用户名"
+                  placeholder="请输入昵称"
                   :disabled="!isEditing"
                 />
               </a-form-item>
               
-              <a-form-item label="邮箱">
-                <a-input 
-                  v-model:value="formData.userEmail" 
-                  placeholder="请输入邮箱"
-                  :disabled="!isEditing"
-                />
-              </a-form-item>
               
               <a-form-item label="用户角色">
                 <a-tag :color="getRoleColor(loginUserStore.loginUser.userRole)">
@@ -106,10 +112,12 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '../../stores/loginUser'
+import { updateUser } from '../../api/userController'
 import { 
   EditOutlined, 
   SaveOutlined, 
-  ArrowLeftOutlined 
+  ArrowLeftOutlined,
+  UserOutlined
 } from '@ant-design/icons-vue'
 
 const router = useRouter()
@@ -121,14 +129,12 @@ const saving = ref(false)
 
 // 表单数据
 const formData = reactive({
-  userName: '',
-  userEmail: ''
+  userName: ''
 })
 
 // 初始化表单数据
 const initFormData = () => {
   formData.userName = loginUserStore.loginUser.userName || ''
-  formData.userEmail = loginUserStore.loginUser.userEmail || ''
 }
 
 // 开始编辑
@@ -146,32 +152,28 @@ const cancelEdit = () => {
 // 保存个人信息
 const saveProfile = async () => {
   if (!formData.userName.trim()) {
-    message.error('用户名不能为空')
+    message.error('昵称不能为空')
     return
   }
   
   saving.value = true
   try {
-    // 这里应该调用API更新用户信息
-    // const res = await updateUserProfile(formData)
-    // if (res.data.code === 0) {
-    //   loginUserStore.setLoginUser({
-    //     ...loginUserStore.loginUser,
-    //     userName: formData.userName,
-    //     userEmail: formData.userEmail
-    //   })
-    //   message.success('保存成功')
-    //   isEditing.value = false
-    // }
-    
-    // 临时模拟保存成功
-    loginUserStore.setLoginUser({
-      ...loginUserStore.loginUser,
-      userName: formData.userName,
-      userEmail: formData.userEmail
+    const res = await updateUser({
+      id: loginUserStore.loginUser.id,
+      userName: formData.userName
     })
-    message.success('保存成功')
-    isEditing.value = false
+    
+    if (res.data.code === 0) {
+      // 更新本地用户信息
+      loginUserStore.setLoginUser({
+        ...loginUserStore.loginUser,
+        userName: formData.userName
+      })
+      message.success('保存成功')
+      isEditing.value = false
+    } else {
+      message.error('保存失败：' + res.data.message)
+    }
   } catch (error) {
     message.error('保存失败，请重试')
   } finally {
@@ -342,6 +344,13 @@ onMounted(() => {
   border-radius: 2px;
 }
 
+.info-tip {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+  padding-left: 12px;
+}
+
 .info-section :deep(.ant-form-item-label > label) {
   font-weight: 500;
   color: #333;
@@ -361,6 +370,12 @@ onMounted(() => {
 .info-section :deep(.ant-input:disabled) {
   background-color: #f5f5f5;
   color: #666;
+}
+
+.readonly-input {
+  background-color: #fafafa !important;
+  color: #666 !important;
+  cursor: not-allowed;
 }
 
 .action-section {

@@ -81,7 +81,7 @@
 </template>
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { deleteUser, listUserVoByPage, updateUser } from '../../api/userController'
+import { deleteUser, listUserVoByPage, updateUserAdmin } from '../../api/userController'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
@@ -198,7 +198,7 @@ const handleEditOk = async () => {
   
   editLoading.value = true
   try {
-    const res = await updateUser(editForm)
+    const res = await updateUserAdmin(editForm)
     if (res.data.code === 0) {
       message.success('更新成功')
       editModalVisible.value = false

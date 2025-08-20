@@ -390,7 +390,6 @@ declare namespace API {
     userName?: string
     userAvatar?: string
     userProfile?: string
-    userRole?: string
   }
 
   type UserVO = {

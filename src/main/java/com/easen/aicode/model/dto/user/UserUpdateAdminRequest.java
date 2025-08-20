@@ -2,8 +2,11 @@ package com.easen.aicode.model.dto.user;
 
 import lombok.Data;
 
+import java.io.Serializable;
+
 @Data
-public class UserUpdateRequest {
+public class UserUpdateAdminRequest implements Serializable {
+
     /**
      * id
      */
@@ -23,4 +26,11 @@ public class UserUpdateRequest {
      * 简介
      */
     private String userProfile;
+
+    /**
+     * 用户角色：user/admin
+     */
+    private String userRole;
+
+    private static final long serialVersionUID = 1L;
 }
