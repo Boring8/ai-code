@@ -77,9 +77,12 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AppResourceCleaner appResourceCleaner;
+
     @Resource
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 
+    @Resource
+    private AiCodeGeneratorServiceFactory aiCodeGeneratorServiceFactory;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser, List<String> images) {
@@ -200,8 +203,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         App updateApp = new App();
         if (app.getAppName() == null) {
             // 生成名称
-            AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService = aiCodeGenTypeRoutingServiceFactory.createAiCodeGenTypeRoutingService();
-            String appName = aiCodeGenTypeRoutingService.generateAppName(app.getInitPrompt());
+            AiCodeGeneratorService aiCodeGeneratorService = aiCodeGeneratorServiceFactory.getAiCodeGeneratorService(appId, codeGenTypeEnum);
+            String appName = aiCodeGeneratorService.generateAppName("生成应用名称");
             ThrowUtils.throwIf(appName.length() == 0, ErrorCode.SYSTEM_ERROR, "AI 生成的名称不符合规范");
             updateApp.setAppName(appName);
         }

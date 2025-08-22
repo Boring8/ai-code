@@ -11,16 +11,6 @@ import dev.langchain4j.service.SystemMessage;
 public interface AiCodeGenTypeRoutingService {
 
     /**
-     * 生成 app 名称
-     *
-     * @param userMessage 提示词
-     * @return
-     */
-    @SystemMessage(fromResource = "prompt/codegen-app-name-prompt.txt")
-    String generateAppName(String userMessage);
-
-
-    /**
      * 根据用户需求智能选择代码生成类型
      *
      * @param userPrompt 用户输入的需求描述
