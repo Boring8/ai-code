@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Description("生成 HTML 代码文件的结果")
 @Data
-public class HtmlCodeResult {
+public class  HtmlCodeResult {
 
     @Description("HTML代码")
     private String htmlCode;

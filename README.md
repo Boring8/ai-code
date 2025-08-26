@@ -122,6 +122,78 @@ AI Code 是一个现代化的AI驱动代码生成平台，集成了先进的AI�
 
 ## 🏗️ 技术架构
 
+### 设计模式架构
+
+本项目在代码生成和文件保存方面采用了多种设计模式，确保代码的可扩展性和可维护性。
+
+#### 策略模式 - 代码解析器
+
+```mermaid
+flowchart TB
+    C[客户端\nClient]
+    I[策略接口\nCodeParser]
+    H[HTML解析策略\nHtmlCodeParser]
+    M[多文件解析策略\nMultiFileCodeParser]
+    RH[返回HtmlCodeResult]
+    RM[返回MultiFileCodeResult]
+
+    C --> I
+    I --> H
+    I --> M
+    H --> RH
+    M --> RM
+```
+
+- **策略接口**: `CodeParser<T>` 定义了通用的代码解析接口
+- **HTML解析策略**: `HtmlCodeParser` 专门处理HTML代码解析，返回 `HtmlCodeResult`
+- **多文件解析策略**: `MultiFileCodeParser` 处理多文件项目解析，返回 `MultiFileCodeResult`
+- **优势**: 客户端可以根据不同需求灵活选择解析策略，无需修改核心逻辑
+
+#### 模板方法模式 - 文件保存器
+
+```mermaid
+flowchart TB
+    A[抽象模板类\nCodeFileSaverTemplate]
+    T[模板方法\nsaveCode]
+    AF[saveFiles - 抽象方法]
+    H[HTML保存器\nHtmlCodeFileSaverTemplate]
+    M[多文件保存器\nMultiFileCodeFileSaverTemplate]
+    IH[实现saveFiles\n保存index.html]
+    IM[实现saveFiles\n保存html+css+js]
+
+    A --> T
+    T --> AF
+    A --> H
+    A --> M
+    H --> IH
+    M --> IM
+```
+
+- **抽象模板类**: `CodeFileSaverTemplate<T>` 定义了文件保存的通用流程
+- **模板方法**: `saveCode()` 方法定义了保存算法的骨架
+- **抽象方法**: `saveFiles()` 由具体子类实现不同的保存逻辑
+- **HTML保存器**: `HtmlCodeFileSaverTemplate` 专门保存单文件HTML项目
+- **多文件保存器**: `MultiFileCodeFileSaverTemplate` 保存包含HTML、CSS、JS的多文件项目
+
+#### 执行器模式 - 保存流程控制
+
+```mermaid
+flowchart TB
+    E[保存执行器\nCodeFileSaverExecutor]
+    R[根据CodeGenTypeEnum\n选择保存模板]
+    H[HtmlCodeFileSaverTemplate]
+    M[MultiFileCodeFileSaverTemplate]
+
+    E --> R
+    R --> H
+    R --> M
+```
+
+- **保存执行器**: `CodeFileSaverExecutor` 作为统一的入口点
+- **类型路由**: 根据 `CodeGenTypeEnum` 动态选择对应的保存模板
+- **模板选择**: 自动选择 `HtmlCodeFileSaverTemplate` 或 `MultiFileCodeFileSaverTemplate`
+- **优势**: 实现了保存逻辑的解耦，支持新类型扩展
+
 ### 后端技术栈
 
 | 技术 | 版本 | 用途 |
@@ -271,6 +343,31 @@ sequenceDiagram
 - **Redis**: 6.0+
 - **浏览器**: Edge（网页截图功能）
 
+### HotKey 依赖安装（必须）
+
+本项目使用了 HotKey 热点数据组件。由于该依赖未发布到公共仓库，需手动将 `lib/` 中的 JAR 安装到本地 Maven 仓库后再编译运行。
+
+1) 确认本地 JAR 位置
+
+- 位置：`lib/hotkey-client-0.0.4-SNAPSHOT.jar`
+
+2) 执行安装命令（Windows PowerShell 示例）
+
+```bash
+mvn install:install-file ^
+  -Dfile=lib/hotkey-client-0.0.4-SNAPSHOT.jar ^
+  -DgroupId=jd.platform ^
+  -DartifactId=hotkey-client ^
+  -Dversion=0.0.4-SNAPSHOT ^
+  -Dpackaging=jar
+```
+
+安装成功后，本地 Maven 仓库中会出现路径：`~/.m2/repository/jd/platform/hotkey/hotkey-client/0.0.4-SNAPSHOT/`。
+
+安装效果示例（相对路径图片）：
+
+![HotKey Maven 安装示例](image/img.png)
+
 ### 后端启动
 
 ```bash
@@ -340,6 +437,38 @@ npm run dev
 - 支持新窗口打开预览
 - 支持一键部署生成的应用
 - 部署后自动显示应用截图封面
+
+## 🖼️ 界面预览
+
+> 以下为平台主要页面的实际效果截图（均为相对路径 `image/` 下的资源）。
+
+### 首页
+
+![首页](image/首页.png)
+
+### 推荐页
+
+![推荐页](image/推荐页.png)
+
+### 对话页
+
+![对话页](image/对话页.png)
+
+### 协同开发
+
+![协同开发](image/协同开发.png)
+
+### 应用管理页面
+
+![应用管理页面](image/应用管理页面.png)
+
+### 用户管理页面
+
+![用户管理页面](image/用户管理页面.png)
+
+### 个人信息页
+
+![个人信息页](image/个人信息页.png)
 
 ## 🔧 开发文档
 
