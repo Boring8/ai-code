@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 
 /**
- * 图片编辑事件 Disruptor 配置
+ * 编辑事件 Disruptor 配置
  */
 @Configuration
 public class AppEventDisruptorConfig {

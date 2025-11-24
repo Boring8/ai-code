@@ -34,15 +34,15 @@ public class HotKeyConfig {
     /**
      * 初始化 hotkey
      */
-    @Bean
-    public ClientStarter initHotkey() {  // 修改返回值类型为 ClientStarter
-        ClientStarter.Builder builder = new ClientStarter.Builder();
-        ClientStarter starter = builder.setAppName(appName)
-                .setCaffeineSize(caffeineSize)
-                .setPushPeriod(pushPeriod)
-                .setEtcdServer(etcdServer)
-                .build();
-        starter.startPipeline();
-        return starter;  // 返回创建的实例
-    }
+//    @Bean
+//    public ClientStarter initHotkey() {  // 修改返回值类型为 ClientStarter
+//        ClientStarter.Builder builder = new ClientStarter.Builder();
+//        ClientStarter starter = builder.setAppName(appName)
+//                .setCaffeineSize(caffeineSize)
+//                .setPushPeriod(pushPeriod)
+//                .setEtcdServer(etcdServer)
+//                .build();
+//        starter.startPipeline();
+//        return starter;  // 返回创建的实例
+//    }
 }

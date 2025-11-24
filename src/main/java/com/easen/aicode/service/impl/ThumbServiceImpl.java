@@ -62,7 +62,7 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb> implements
                 .map(tuple -> {
                     Long appId = (Long) tuple.getValue();
                     Double score = tuple.getScore();
-                        App app = appService.getAppByIdWithHotKey((appId));
+                        App app = appService.getById(appId);
                         if (app == null) {
                             return null;
                         }

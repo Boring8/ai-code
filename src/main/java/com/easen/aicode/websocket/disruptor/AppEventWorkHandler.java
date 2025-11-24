@@ -18,7 +18,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 
 /**
- * 图片编辑事件处理器（消费者）
+ * 编辑事件处理器（消费者）
  */
 @Component
 @Slf4j

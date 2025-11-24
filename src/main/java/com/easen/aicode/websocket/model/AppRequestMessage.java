@@ -7,7 +7,7 @@ import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
 
 /**
- * 图片编辑请求消息
+ * 编辑请求消息
  */
 @Data
 @NoArgsConstructor

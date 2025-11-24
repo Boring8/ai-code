@@ -113,15 +113,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(), images);
 
         // 7. 调用 AI 生成代码（流式）
-        Flux<String> codeStream;
-        if (loginUser.getUserRole().equals(UserRoleEnum.MEMBER.getValue())) {
-            //会员
-            codeStream = new CodeGenConcurrentWorkflow().executeWorkflowWithFlux(fullMessage, appId, loginUser.getId());
-        } else {
-            //普通
-            codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(fullMessage, codeGenTypeEnum, appId, loginUser.getId());
-        }
-        // 7. 收集 AI 响应的内容，并且在完成后保存记录到对话历史
+        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(fullMessage, codeGenTypeEnum, appId, loginUser.getId());
+
+        // 8. 收集 AI 响应的内容，并且在完成后保存记录到对话历史
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
 
     }
@@ -408,32 +402,32 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         return queryWrapper;
     }
 
-    /**
-     * 先从 HotKey 读取 App 数据，如果没有则查询数据库并回填 HotKey。
-     * HotKey 的 key 前缀为 APP_ID_HOTKEY_PREFIX。
-     *
-     * @param appId 应用 ID
-     * @return App 实体，可能为 null
-     */
-    public App getAppByIdWithHotKey(Long appId) {
-        String cacheKey = ThumbConstant.APP_ID_HOTKEY_PREFIX + appId;
-        if (JdHotKeyStore.isHotKey(cacheKey)) {
-            Object cached = JdHotKeyStore.get(cacheKey);
-            if (cached instanceof App) {
-                return (App) cached;
-            }
-        }
-        App app = this.getById(appId);
-        if (app != null) {
-            JdHotKeyStore.smartSet(cacheKey, app);
-        }
-        return app;
-    }
-
-    @Override
-    public void removeByIdWithHotKey(Long appId) {
-        String cacheKey = ThumbConstant.APP_ID_HOTKEY_PREFIX + appId;
-        JdHotKeyStore.remove(cacheKey);
-    }
+//    /**
+//     * 先从 HotKey 读取 App 数据，如果没有则查询数据库并回填 HotKey。
+//     * HotKey 的 key 前缀为 APP_ID_HOTKEY_PREFIX。
+//     *
+//     * @param appId 应用 ID
+//     * @return App 实体，可能为 null
+//     */
+//    public App getAppByIdWithHotKey(Long appId) {
+//        String cacheKey = ThumbConstant.APP_ID_HOTKEY_PREFIX + appId;
+//        if (JdHotKeyStore.isHotKey(cacheKey)) {
+//            Object cached = JdHotKeyStore.get(cacheKey);
+//            if (cached instanceof App) {
+//                return (App) cached;
+//            }
+//        }
+//        App app = this.getById(appId);
+//        if (app != null) {
+//            JdHotKeyStore.smartSet(cacheKey, app);
+//        }
+//        return app;
+//    }
+//
+//    @Override
+//    public void removeByIdWithHotKey(Long appId) {
+//        String cacheKey = ThumbConstant.APP_ID_HOTKEY_PREFIX + appId;
+//        JdHotKeyStore.remove(cacheKey);
+//    }
 
 }

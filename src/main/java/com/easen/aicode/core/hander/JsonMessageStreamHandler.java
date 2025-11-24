@@ -50,8 +50,6 @@ public class JsonMessageStreamHandler {
         StringBuilder chatHistoryStringBuilder = new StringBuilder();
         // 用于跟踪已经见过的工具ID，判断是否是第一次调用
         Set<String> seenToolIds = new HashSet<>();
-        // 用于跟踪流是否被中断
-        AtomicBoolean isInterrupted = new AtomicBoolean(false);
         return originFlux
                 .map(chunk -> {
                     // 解析每个 JSON 消息块

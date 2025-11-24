@@ -287,16 +287,12 @@ const searchUsers = async () => {
   try {
     // 判断输入是数字还是字符串
     const userId = parseInt(searchKeyword.value)
-    const isNumeric = !isNaN(userId)
     
     let params: { id?: number; userAccount?: string }
-    if (isNumeric) {
-      // 如果是数字，按ID搜索
-      params = { id: userId }
-    } else {
+
       // 如果是字符串，按用户账号搜索
-      params = { userAccount: searchKeyword.value.trim() }
-    }
+      params = { userAccount: searchKeyword.value }
+
     
     const res = await getUserVoById(params)
     

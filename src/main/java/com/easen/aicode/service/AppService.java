@@ -23,21 +23,21 @@ import java.util.List;
  */
 public interface AppService extends IService<App> {
 
-    /**
-     * 通过 HotKey/本地热点缓存优先获取应用数据，未命中时回源数据库。
-     * 实现类应负责缓存一致性与降级策略。
-     *
-     * @param appId 应用 ID（不能为空）
-     * @return 应用实体；若不存在返回 null 或由实现自行处理（如抛出业务异常）
-     */
-    App getAppByIdWithHotKey(Long appId);
-
-    /**
-     * 删除指定应用并清理相关 HotKey/缓存，保障数据一致性。
-     *
-     * @param appId 应用 ID
-     */
-    void removeByIdWithHotKey(Long appId);
+//    /**
+//     * 通过 HotKey/本地热点缓存优先获取应用数据，未命中时回源数据库。
+//     * 实现类应负责缓存一致性与降级策略。
+//     *
+//     * @param appId 应用 ID（不能为空）
+//     * @return 应用实体；若不存在返回 null 或由实现自行处理（如抛出业务异常）
+//     */
+//    App getAppByIdWithHotKey(Long appId);
+//
+//    /**
+//     * 删除指定应用并清理相关 HotKey/缓存，保障数据一致性。
+//     *
+//     * @param appId 应用 ID
+//     */
+//    void removeByIdWithHotKey(Long appId);
 
     /**
      * 部署应用（例如将前端产物上传至静态资源托管或对象存储），返回可访问的 URL。

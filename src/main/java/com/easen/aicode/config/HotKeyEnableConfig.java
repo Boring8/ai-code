@@ -9,11 +9,11 @@ import org.springframework.context.annotation.Configuration;
  *
  * @author easen
  */
-@Configuration
-@ComponentScan(basePackages = {
-        "com.easen.aicode.hotkey.aspect",
-        "com.easen.aicode.hotkey"
-})
+//@Configuration
+//@ComponentScan(basePackages = {
+//        "com.easen.aicode.hotkey.aspect",
+//        "com.easen.aicode.hotkey"
+//})
 public class HotKeyEnableConfig {
     
     // 配置类，用于启用 hotkey 模块

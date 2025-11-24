@@ -19,8 +19,8 @@ import java.lang.reflect.Method;
  * 热键缓存切面
  * 实现热键缓存的 AOP 环绕切面
  */
-@Aspect
-@Component
+//@Aspect
+//@Component
 @Slf4j
 public class HotKeyCacheAspect {
 

@@ -3,7 +3,7 @@ package com.easen.aicode.websocket.model;
 import lombok.Getter;
 
 /**
- * 图片编辑消息类型枚举
+ * 编辑消息类型枚举
  */
 @Getter
 public enum AppMessageTypeEnum {
