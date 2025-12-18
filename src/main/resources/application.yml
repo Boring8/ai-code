@@ -2,14 +2,14 @@ spring:
   application:
     name: ai-code-backend
   profiles:
-    active: local
+    active: dev
 
   # mysql
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/ai_code
     username: root
-    password: mengxiang
+    password: 123456
   #redis
   data:
     redis:
@@ -105,8 +105,8 @@ sa-token:
   # 是否输出操作日志
   is-log: true
 # 热 key 探测
-hotkey:
-  app-name: easenAi
-  caffeine-size: 10000
-  push-period: 1000
-  etcd-server: http://localhost:2379
+#hotkey:
+#  app-name: easenAi
+#  caffeine-size: 10000
+#  push-period: 1000
+#  etcd-server: http://localhost:2379
