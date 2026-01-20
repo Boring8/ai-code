@@ -105,7 +105,19 @@
                 <a-avatar :src="aiAvatar" />
               </div>
               <div class="message-content">
-                <MarkdownRenderer v-if="message.content" :content="message.content" />
+                <MarkdownRenderer
+                  v-if="message.content && getAiDisplayContent(message)"
+                  :content="getAiDisplayContent(message)"
+                />
+                <div
+                  v-if="message.messageType === 'ai' && message.content && getAiCodeContent(message)"
+                  class="code-hint"
+                >
+                  <span>代码已移至右侧「代码」面板</span>
+                  <a-button type="link" size="small" @click="showCodeFromMessage(message)">
+                    查看
+                  </a-button>
+                </div>
                 <div v-if="message.loading" class="loading-indicator">
                   <a-spin size="small" />
                   <span>AI 正在思考...</span>
@@ -291,26 +303,52 @@
           </div>
         </div>
         <div class="preview-content">
-          <div v-if="!previewUrl && !isGenerating && !isOtherUserGenerating" class="preview-placeholder">
-            <div class="placeholder-icon">🌐</div>
-            <p>网站文件生成完成后将在这里展示</p>
-          </div>
-          <div v-else-if="isGenerating" class="preview-loading">
-            <a-spin size="large" />
-            <p>正在生成网站...</p>
-          </div>
-          <div v-else-if="isOtherUserGenerating && otherGeneratingUser" class="preview-loading">
-            <a-spin size="large" />
-            <p>{{ otherGeneratingUser.userName }} 正在生成网站...</p>
-          </div>
-          <iframe
-            v-else
-            ref="previewIframe"
-            :src="previewUrl"
-            class="preview-iframe"
-            frameborder="0"
-            @load="onIframeLoad"
-          ></iframe>
+          <a-tabs v-model:activeKey="activeRightTab" class="right-tabs">
+            <a-tab-pane key="code" tab="代码">
+              <div class="code-toolbar">
+                <div class="code-toolbar-left">
+                  <a-tag v-if="isGenerating" color="blue">生成中</a-tag>
+                  <a-tag v-else-if="isOtherUserGenerating && otherGeneratingUser" color="orange">
+                    {{ otherGeneratingUser.userName }} 生成中
+                  </a-tag>
+                  <a-tag v-else color="green">就绪</a-tag>
+                </div>
+                <div class="code-toolbar-right">
+                  <a-button type="link" size="small" :disabled="!codeContent" @click="copyCode">
+                    复制
+                  </a-button>
+                  <a-button type="link" size="small" :disabled="!codeContent" @click="clearCode">
+                    清空
+                  </a-button>
+                </div>
+              </div>
+              <div ref="codeContainer" class="code-panel">
+                <pre class="code-pre">{{ codeContent || '代码将在这里实时输出…' }}</pre>
+              </div>
+            </a-tab-pane>
+            <a-tab-pane key="preview" tab="预览">
+              <div v-if="!previewUrl && !isGenerating && !isOtherUserGenerating" class="preview-placeholder">
+                <div class="placeholder-icon">🌐</div>
+                <p>网站文件生成完成后将在这里展示</p>
+              </div>
+              <div v-else-if="isGenerating" class="preview-loading">
+                <a-spin size="large" />
+                <p>正在生成网站...</p>
+              </div>
+              <div v-else-if="isOtherUserGenerating && otherGeneratingUser" class="preview-loading">
+                <a-spin size="large" />
+                <p>{{ otherGeneratingUser.userName }} 正在生成网站...</p>
+              </div>
+              <iframe
+                v-else
+                ref="previewIframe"
+                :src="previewUrl"
+                class="preview-iframe"
+                frameborder="0"
+                @load="onIframeLoad"
+              ></iframe>
+            </a-tab-pane>
+          </a-tabs>
         </div>
       </div>
     </div>
@@ -425,6 +463,7 @@ const uploading = ref(false)
 // 停止生成相关
 let currentEventSource: EventSource | null = null
 const isCancelling = ref(false)
+let generationTimeoutTimer: number | null = null
 
 // 对话历史相关
 const loadingHistory = ref(false)
@@ -434,6 +473,15 @@ const lastCreateTime = ref<string>('')
 // 预览相关
 const previewUrl = ref('')
 const previewReady = ref(false)
+
+// 右侧面板（代码 / 预览）
+const activeRightTab = ref<'code' | 'preview'>('preview')
+const codeContent = ref<string>('')
+const codeContainer = ref<HTMLElement>()
+let typewriterPending = ''
+let typewriterTimer: number | null = null
+const TYPEWRITER_CHARS_PER_TICK = 40
+const TYPEWRITER_TICK_MS = 16
 
 // 部署相关
 const deploying = ref(false)
@@ -607,28 +655,35 @@ const handleWebSocketMessage = (data: any) => {
       break
       
     case 'AI_EDIT_ACTION':
-      // AI对话内容流式推送
+      // AI对话内容流式推送（团队协作：区分 explain/code）
       if (data.user && data.user.id !== loginUserStore.loginUser.id) {
-        // 其他用户的AI对话流式内容
+        const streamType = data.streamType || 'explain'
+        if (streamType === 'code') {
+          activeRightTab.value = 'code'
+          enqueueCodeChunk(data.editAction || '')
+          break
+        }
+
+        // explain：其他用户的说明流（写入左侧对话）
         if (!isStreamingFromOther.value) {
           // 开始新的流式内容
           isStreamingFromOther.value = true
           streamingUser.value = data.user
           streamingContent.value = data.editAction || ''
-          
+
           // 添加AI消息占位符
           messages.value.push({
             messageType: 'ai',
             content: '',
             loading: true,
             userName: data.user.userName,
-            userAvatar: data.user.userAvatar
+            userAvatar: data.user.userAvatar,
           })
         } else {
           // 继续追加流式内容
           streamingContent.value += data.editAction || ''
         }
-        
+
         // 更新消息内容
         const lastMessage = messages.value[messages.value.length - 1]
         if (lastMessage && lastMessage.messageType === 'ai') {
@@ -1056,42 +1111,73 @@ const generateCode = async (userMessage: string, aiMessageIndex: number, imageUr
       withCredentials: true,
     })
 
-    let fullContent = ''
+    // 生成开始时，默认切到“代码”Tab，并清空上次内容
+    activeRightTab.value = 'code'
+    clearCode()
 
-    // 处理接收到的消息
-    currentEventSource.onmessage = function (event) {
+    // 生成超时兜底：避免一直转圈
+    if (generationTimeoutTimer) {
+      window.clearTimeout(generationTimeoutTimer)
+      generationTimeoutTimer = null
+    }
+    generationTimeoutTimer = window.setTimeout(() => {
+      if (!streamCompleted && isGenerating.value) {
+        handleError(new Error('生成超时，请重试'), aiMessageIndex)
+      }
+    }, 5 * 60 * 1000)
+
+    // explain：左侧仅显示说明文字
+    currentEventSource.addEventListener('explain', function (event: MessageEvent) {
       if (streamCompleted) return
-
       try {
-        // 解析JSON包装的数据
         const parsed = JSON.parse(event.data)
         const content = parsed.d
-
-        // 拼接内容
         if (content !== undefined && content !== null) {
-          fullContent += content
-          messages.value[aiMessageIndex].content = fullContent
+          messages.value[aiMessageIndex].content += content
           messages.value[aiMessageIndex].loading = false
           scrollToBottom()
-          
-          // 只在团队应用中实时推送流式内容到其他用户
+
+          // 团队应用：同步说明流
           if (isTeamApp.value) {
             sendWebSocketMessage({
               messageType: 'AI_EDIT_ACTION',
-              user: {
-                id: loginUserStore.loginUser.id,
-                userName: loginUserStore.loginUser.userName,
-                userAvatar: loginUserStore.loginUser.userAvatar
-              },
-              editAction: content
+              type: 'text',
+              streamType: 'explain',
+              editAction: String(content),
             })
           }
         }
       } catch (error) {
-        console.error('解析消息失败:', error)
+        console.error('解析 explain 消息失败:', error)
         handleError(error, aiMessageIndex)
       }
-    }
+    })
+
+    // code：右侧代码面板（打字机效果在后续队列中处理）
+    currentEventSource.addEventListener('code', function (event: MessageEvent) {
+      if (streamCompleted) return
+      try {
+        const parsed = JSON.parse(event.data)
+        const content = parsed.d
+        if (content !== undefined && content !== null) {
+          enqueueCodeChunk(String(content))
+
+          // 团队应用：同步代码流
+          if (isTeamApp.value) {
+            sendWebSocketMessage({
+              messageType: 'AI_EDIT_ACTION',
+              type: 'text',
+              streamType: 'code',
+              editAction: String(content),
+            })
+          }
+        }
+      } catch (error) {
+        console.error('解析 code 消息失败:', error)
+        handleError(error, aiMessageIndex)
+      }
+    })
+
     // 处理business-error事件（后端限流等错误）
     currentEventSource.addEventListener('business-error', function (event: MessageEvent) {
       if (streamCompleted) return
@@ -1108,6 +1194,10 @@ const generateCode = async (userMessage: string, aiMessageIndex: number, imageUr
 
         streamCompleted = true
         isGenerating.value = false
+        if (generationTimeoutTimer) {
+          window.clearTimeout(generationTimeoutTimer)
+          generationTimeoutTimer = null
+        }
         currentEventSource?.close()
       } catch (parseError) {
         console.error('解析错误事件失败:', parseError, '原始数据:', event.data)
@@ -1121,6 +1211,11 @@ const generateCode = async (userMessage: string, aiMessageIndex: number, imageUr
 
       streamCompleted = true
       isGenerating.value = false
+      flushTypewriterAll()
+      if (generationTimeoutTimer) {
+        window.clearTimeout(generationTimeoutTimer)
+        generationTimeoutTimer = null
+      }
       currentEventSource?.close()
       currentEventSource = null
 
@@ -1151,13 +1246,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number, imageUr
       if (currentEventSource?.readyState === EventSource.CONNECTING) {
         streamCompleted = true
         isGenerating.value = false
+        if (generationTimeoutTimer) {
+          window.clearTimeout(generationTimeoutTimer)
+          generationTimeoutTimer = null
+        }
         currentEventSource?.close()
         currentEventSource = null
 
         // 只在团队应用中发送退出编辑状态消息
         if (isTeamApp.value) {
           sendWebSocketMessage({
-            type: 'USER_EXIT_EDIT',
+            messageType: 'USER_EXIT_EDIT',
             user: {
               id: loginUserStore.loginUser.id,
               userName: loginUserStore.loginUser.userName,
@@ -1252,6 +1351,11 @@ const handleError = (error: unknown, aiMessageIndex: number) => {
   messages.value[aiMessageIndex].loading = false
   message.error('生成失败，请重试')
   isGenerating.value = false
+  flushTypewriterAll()
+  if (generationTimeoutTimer) {
+    window.clearTimeout(generationTimeoutTimer)
+    generationTimeoutTimer = null
+  }
   
   // 清理 EventSource
   if (currentEventSource) {
@@ -1271,6 +1375,144 @@ const handleError = (error: unknown, aiMessageIndex: number) => {
       editAction: ''
     })
   }
+}
+
+const scrollCodeToBottom = () => {
+  if (codeContainer.value) {
+    codeContainer.value.scrollTop = codeContainer.value.scrollHeight
+  }
+}
+
+const stopTypewriter = () => {
+  if (typewriterTimer) {
+    window.clearInterval(typewriterTimer)
+    typewriterTimer = null
+  }
+}
+
+const startTypewriter = () => {
+  if (typewriterTimer) return
+  typewriterTimer = window.setInterval(() => {
+    if (!typewriterPending) {
+      stopTypewriter()
+      return
+    }
+    const slice = typewriterPending.slice(0, TYPEWRITER_CHARS_PER_TICK)
+    typewriterPending = typewriterPending.slice(TYPEWRITER_CHARS_PER_TICK)
+    codeContent.value += slice
+    scrollCodeToBottom()
+  }, TYPEWRITER_TICK_MS)
+}
+
+const enqueueCodeChunk = (chunk: string) => {
+  if (!chunk) return
+  typewriterPending += chunk
+  startTypewriter()
+}
+
+const flushTypewriterAll = () => {
+  if (typewriterPending) {
+    codeContent.value += typewriterPending
+    typewriterPending = ''
+    scrollCodeToBottom()
+  }
+  stopTypewriter()
+}
+
+const clearCode = () => {
+  typewriterPending = ''
+  stopTypewriter()
+  codeContent.value = ''
+  nextTick(() => {
+    scrollCodeToBottom()
+  })
+}
+
+const copyCode = async () => {
+  if (!codeContent.value) return
+  try {
+    await navigator.clipboard.writeText(codeContent.value)
+    message.success('已复制到剪贴板')
+  } catch (e) {
+    // fallback
+    const textarea = document.createElement('textarea')
+    textarea.value = codeContent.value
+    textarea.style.position = 'fixed'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    message.success('已复制到剪贴板')
+  }
+}
+
+type SplitContent = {
+  explain: string
+  code: string
+}
+
+const splitExplainAndCode = (raw: string): SplitContent => {
+  const text = raw ?? ''
+  if (!text.trim()) {
+    return { explain: '', code: '' }
+  }
+
+  // 1) 优先解析 Markdown fenced code blocks
+  const fenceRegex = /```[\s\S]*?```/g
+  if (fenceRegex.test(text)) {
+    const matches = text.match(fenceRegex) || []
+    const codeParts: string[] = []
+    for (const m of matches) {
+      const stripped = m.replace(/^```[^\n]*\n?/, '').replace(/\n?```$/, '')
+      if (stripped.trim()) {
+        codeParts.push(stripped)
+      }
+    }
+    const explain = text.replace(fenceRegex, '').trim()
+    return { explain, code: codeParts.join('\n\n').trim() }
+  }
+
+  // 2) 纯代码/大段代码：启发式判断（例如直接输出 HTML/Java/JS）
+  const trimmed = text.trim()
+  const looksLikeHtml = /^<!DOCTYPE\s+html>/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)
+  const looksLikeJava = /^\s*package\s+[\w.]+;/.test(trimmed) || /^\s*public\s+class\s+/.test(trimmed)
+  const looksLikeJs = /^\s*(import|export)\s+/.test(trimmed) || /^\s*function\s+\w+/.test(trimmed)
+  const lineCount = trimmed.split('\n').length
+  if ((looksLikeHtml || looksLikeJava || looksLikeJs) && lineCount >= 3) {
+    return { explain: '', code: trimmed }
+  }
+
+  // 默认：全部当作说明
+  return { explain: text, code: '' }
+}
+
+const getAiDisplayContent = (msg: Message): string => {
+  if (msg.messageType !== 'ai') return msg.content
+  const { explain, code } = splitExplainAndCode(msg.content)
+  if (explain && explain.trim()) return explain
+  if (code && code.trim()) return ''
+  return msg.content
+}
+
+const getAiCodeContent = (msg: Message): string => {
+  if (msg.messageType !== 'ai') return ''
+  const { code } = splitExplainAndCode(msg.content)
+  return code
+}
+
+const showCodeFromMessage = (msg: Message) => {
+  const code = getAiCodeContent(msg)
+  if (!code) return
+  activeRightTab.value = 'code'
+  // 直接展示完整代码，不走打字机队列
+  typewriterPending = ''
+  stopTypewriter()
+  codeContent.value = code
+  nextTick(() => {
+    scrollCodeToBottom()
+  })
 }
 
 // 更新预览
@@ -1494,6 +1736,11 @@ watch(isOtherUserGenerating, (newValue) => {
     selectedElement.value = null
     message.info(`${otherGeneratingUser.value?.userName || '其他用户'} 开始生成，已自动退出可视编辑模式`)
   }
+  if (newValue) {
+    // 其他用户开始生成时，也切到“代码”并清空上次内容
+    activeRightTab.value = 'code'
+    clearCode()
+  }
 })
 
 // 清理资源
@@ -1506,6 +1753,10 @@ onUnmounted(() => {
   if (currentEventSource) {
     currentEventSource.close()
     currentEventSource = null
+  }
+  if (generationTimeoutTimer) {
+    window.clearTimeout(generationTimeoutTimer)
+    generationTimeoutTimer = null
   }
 })
 </script>
@@ -1807,6 +2058,15 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
+.code-hint {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 12px;
+}
+
 /* 输入区域 */
 .input-container {
   padding: 16px;
@@ -2013,6 +2273,58 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   min-height: 0;
+}
+
+.right-tabs {
+  height: 100%;
+}
+
+.right-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+}
+
+.right-tabs :deep(.ant-tabs-nav-wrap) {
+  padding: 0 12px;
+}
+
+.right-tabs :deep(.ant-tabs-tab) {
+  padding: 10px 0;
+}
+
+.right-tabs :deep(.ant-tabs-content-holder) {
+  height: 100%;
+}
+
+.right-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.right-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
+}
+
+.code-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.code-panel {
+  height: calc(100% - 42px);
+  overflow: auto;
+  background: #0b1020;
+}
+
+.code-pre {
+  margin: 0;
+  padding: 12px;
+  color: #e6edf3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
 }
 
 .preview-placeholder {

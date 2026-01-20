@@ -28,4 +28,11 @@ public class AppRequestMessage {
      * 格式
      */
     private String type;
+
+    /**
+     * 流式内容类型（用于 AI_EDIT_ACTION 区分说明/代码）
+     * explain: 左侧说明流
+     * code: 右侧代码流
+     */
+    private String streamType;
 }

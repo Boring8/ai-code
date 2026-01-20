@@ -22,6 +22,11 @@ public class AppResponseMessage {
     private String editAction;
 
     /**
+     * 流式内容类型（用于 AI_EDIT_ACTION 区分说明/代码）
+     */
+    private String streamType;
+
+    /**
      * 用户信息
      */
     private UserVO user;
