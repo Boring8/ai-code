@@ -9,10 +9,12 @@ import com.easen.aicode.ai.tools.BaseTool;
 import com.easen.aicode.ai.tools.ToolManager;
 import com.easen.aicode.constant.AppConstant;
 import com.easen.aicode.core.builder.VueProjectBuilder;
+import com.easen.aicode.model.enums.CodeGenTypeEnum;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.ChatHistoryMessageTypeEnum;
 import com.easen.aicode.model.enums.ChatHistoryStatusEnum;
 import com.easen.aicode.service.ChatHistoryService;
+import com.easen.aicode.service.CodeVersionService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,6 +35,9 @@ public class JsonMessageStreamHandler {
     @Resource
     private ToolManager toolManager;
 
+    @Resource
+    private CodeVersionService codeVersionService;
+
     /**
      * 处理 TokenStream（VUE_PROJECT）
      * 解析 JSON 消息并重组为完整的响应格式
@@ -48,12 +53,18 @@ public class JsonMessageStreamHandler {
                                long appId, User loginUser) {
         // 收集数据用于生成后端记忆格式
         StringBuilder chatHistoryStringBuilder = new StringBuilder();
+        // 收集“发往前端代码面板”的文本，用于版本记录（按真实面板输出存档）
+        StringBuilder panelContentBuilder = new StringBuilder();
         // 用于跟踪已经见过的工具ID，判断是否是第一次调用
         Set<String> seenToolIds = new HashSet<>();
         return originFlux
                 .map(chunk -> {
                     // 解析每个 JSON 消息块
-                    return handleJsonMessageChunk(chunk, chatHistoryStringBuilder, seenToolIds);
+                    String out = handleJsonMessageChunk(chunk, chatHistoryStringBuilder, seenToolIds);
+                    if (StrUtil.isNotEmpty(out)) {
+                        panelContentBuilder.append(out);
+                    }
+                    return out;
                 })
                 .filter(StrUtil::isNotEmpty) // 过滤空字串
                 .doOnComplete(() -> {
@@ -61,6 +72,12 @@ public class JsonMessageStreamHandler {
                     // 流式响应完成后，添加 AI 消息到对话历史
                     String aiResponse = chatHistoryStringBuilder.toString();
                     chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(),null);
+                    // 同时写入代码版本（面板文本）
+                    try {
+                        codeVersionService.addCodeVersion(appId, CodeGenTypeEnum.VUE_PROJECT.getValue(), panelContentBuilder.toString(), loginUser.getId());
+                    } catch (Exception e) {
+                        log.error("写入代码版本失败: {}", e.getMessage(), e);
+                    }
                 })
                 .doOnError(error -> {
                     // 如果AI回复失败，也要记录错误消息

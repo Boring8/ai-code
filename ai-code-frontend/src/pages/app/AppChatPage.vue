@@ -387,6 +387,7 @@ import {
 
 import { canEditApp, hasPermission, PERMISSIONS } from '../../utils/permissionUtils'
 import { listAppChatHistory } from '../../api/chatHistoryController'
+import { getLatestCodeText } from '../../api/codeVersionController'
 import { CodeGenTypeEnum, formatCodeGenType } from '@/utils/codeGenTypes'
 import request from '@/request'
 
@@ -806,6 +807,29 @@ const checkManagePermission = () => {
   return hasPermission(userPermissions, PERMISSIONS.APP_USER_MANAGE)
 }
 
+// 查询最新的代码面板文本（版本表；无记录则为空）
+async function loadLatestCodeText() {
+  if (!appId.value) return
+  try {
+    const res = await getLatestCodeText({ appId: appId.value })
+    if (res.data.code === 0) {
+      const latest = res.data.data || ''
+      if (latest) {
+        // 进入页面时恢复右侧代码面板（不走打字机队列）
+        typewriterPending = ''
+        stopTypewriter()
+        codeContent.value = latest
+        nextTick(() => {
+          scrollCodeToBottom()
+        })
+      }
+    }
+  } catch (e) {
+    // 静默失败：不影响页面正常进入
+    console.warn('获取最新代码版本失败：', e)
+  }
+}
+
 // 获取应用信息
 const fetchAppInfo = async () => {
   const id = route.params.id as string
@@ -829,6 +853,9 @@ const fetchAppInfo = async () => {
 
       // 加载对话历史
       await loadChatHistory()
+
+      // 进入页面后，加载最新的代码面板内容（版本表）
+      await loadLatestCodeText()
 
       // 检查是否需要自动发送初始提示词
       if (appInfo.value?.initPrompt && isOwner.value && messages.value.length === 0) {

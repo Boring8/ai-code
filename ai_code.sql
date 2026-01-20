@@ -84,6 +84,25 @@ CREATE TABLE `chat_history`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 313889877698203649 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '对话历史' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for code_version
+-- ----------------------------
+DROP TABLE IF EXISTS `code_version`;
+CREATE TABLE `code_version`  (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `appId` bigint(20) NOT NULL COMMENT '应用id',
+  `codeGenType` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '代码生成类型（html/multi_file/vue_project）',
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '代码面板文本全量',
+  `userId` bigint(20) NOT NULL COMMENT '创建用户id',
+  `createTime` datetime(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `updateTime` datetime(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  `isDelete` tinyint(4) NOT NULL DEFAULT 0 COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_appId`(`appId`) USING BTREE,
+  INDEX `idx_createTime`(`createTime`) USING BTREE,
+  INDEX `idx_appId_createTime`(`appId`, `createTime`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代码版本（代码面板文本）' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for thumb
 -- ----------------------------
 DROP TABLE IF EXISTS `thumb`;

@@ -16,6 +16,7 @@ import com.easen.aicode.core.saver.CodeFileSaverExecutor;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.model.enums.CodeGenTypeEnum;
+import com.easen.aicode.service.CodeVersionService;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.tool.ToolExecution;
@@ -43,6 +44,9 @@ public class AiCodeGeneratorFacade {
 
     @Resource
     private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private CodeVersionService codeVersionService;
 //
 //    /**
 //     * 统一入口：根据类型生成并保存代码
@@ -166,6 +170,12 @@ public class AiCodeGeneratorFacade {
                         // 流式返回完成后，保存代码
                         try {
                             String completeCode = codeBuilder.toString();
+                            // 生成完成后，写入一条代码版本记录（用于进入页面恢复代码面板）
+                            try {
+                                codeVersionService.addCodeVersion(appId, codeGenType.getValue(), completeCode, userId);
+                            } catch (Exception e) {
+                                log.error("写入代码版本失败: {}", e.getMessage(), e);
+                            }
                             // 使用执行器解析代码
                             Object parsedResult = CodeParserExecutor.executeParser(completeCode, codeGenType);
                             // 使用执行器保存代码
