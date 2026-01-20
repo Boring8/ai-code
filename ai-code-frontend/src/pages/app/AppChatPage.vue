@@ -1657,7 +1657,11 @@ const injectVisualEditScript = () => {
   if (!previewIframe.value?.contentDocument) return
   
   try {
+    // 防止重复注入（重复注入可能导致多重监听器/状态异常）
+    const existing = previewIframe.value.contentDocument.getElementById('visual-editor-injection')
+    if (existing) return
     const script = previewIframe.value.contentDocument.createElement('script')
+    script.id = 'visual-editor-injection'
     script.textContent = VisualEditor.getInjectionScript()
     previewIframe.value.contentDocument.head.appendChild(script)
   } catch (error) {
