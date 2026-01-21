@@ -168,66 +168,110 @@ export class VisualEditor {
   static getInjectionScript(): string {
     return `
       (function() {
+        // 防重复注入：如果已初始化过，直接退出
+        if (window.__AI_VISUAL_EDITOR__) {
+          return;
+        }
+        window.__AI_VISUAL_EDITOR__ = true;
+
         let isEditMode = false;
         let selectedElement = null;
         let hoverElement = null;
         
-        const HOVER_BORDER_STYLE = '2px solid #1890ff';
-        const SELECTED_BORDER_STYLE = '3px solid #ff4d4f';
-        
-        // 存储原始样式
-        const originalStyles = new WeakMap();
-        
-        // 保存元素原始样式
-        function saveOriginalStyle(element) {
-          if (!originalStyles.has(element)) {
-            originalStyles.set(element, {
-              border: element.style.border,
-              outline: element.style.outline,
-              cursor: element.style.cursor
-            });
+        // 不再修改被选元素的 border（避免“红线残留”）
+        // 采用覆盖层绘制高亮框
+        const HOVER_BORDER = '2px solid #1890ff';
+        const SELECTED_BORDER = '3px solid #ff4d4f';
+        // 兼容旧实现（曾直接写入元素 style.border 的值）
+        const LEGACY_HOVER_BORDER = '2px solid #1890ff';
+        const LEGACY_SELECTED_BORDER = '3px solid #ff4d4f';
+        const OVERLAY_Z_INDEX = 2147483647;
+
+        function clearLegacyBorder(element) {
+          if (!element || !element.style) return;
+          const b = element.style.border;
+          if (b === LEGACY_HOVER_BORDER || b === LEGACY_SELECTED_BORDER) {
+            element.style.border = '';
           }
         }
-        
-        // 恢复元素原始样式
-        function restoreOriginalStyle(element) {
-          const original = originalStyles.get(element);
-          if (original) {
-            element.style.border = original.border;
-            element.style.outline = original.outline;
-            element.style.cursor = original.cursor;
+
+        function createOverlay(id, border) {
+          let el = document.getElementById(id);
+          if (el) return el;
+          el = document.createElement('div');
+          el.id = id;
+          el.style.position = 'fixed';
+          el.style.top = '0';
+          el.style.left = '0';
+          el.style.width = '0';
+          el.style.height = '0';
+          el.style.border = border;
+          el.style.boxSizing = 'border-box';
+          el.style.borderRadius = '2px';
+          el.style.pointerEvents = 'none';
+          el.style.zIndex = String(OVERLAY_Z_INDEX);
+          el.style.display = 'none';
+          // 轻微高亮效果
+          el.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.6) inset';
+          document.documentElement.appendChild(el);
+          return el;
+        }
+
+        const hoverOverlay = createOverlay('__ai_visual_hover_overlay__', HOVER_BORDER);
+        const selectedOverlay = createOverlay('__ai_visual_selected_overlay__', SELECTED_BORDER);
+
+        function hideOverlay(overlay) {
+          overlay.style.display = 'none';
+          overlay.style.width = '0';
+          overlay.style.height = '0';
+        }
+
+        function positionOverlayForElement(overlay, element) {
+          if (!element || !element.getBoundingClientRect) {
+            hideOverlay(overlay);
+            return;
           }
-        }
-        
-        // 应用悬浮样式
-        function applyHoverStyle(element) {
-          if (element === selectedElement) return;
-          
-          saveOriginalStyle(element);
-          element.style.border = HOVER_BORDER_STYLE;
-          element.style.cursor = 'pointer';
-        }
-        
-        // 应用选中样式
-        function applySelectedStyle(element) {
-          saveOriginalStyle(element);
-          element.style.border = SELECTED_BORDER_STYLE;
-          element.style.cursor = 'pointer';
-        }
-        
-        // 清除所有样式
-        function clearAllStyles() {
-          // 清除悬浮样式
-          if (hoverElement) {
-            restoreOriginalStyle(hoverElement);
-            hoverElement = null;
+          const rect = element.getBoundingClientRect();
+          if (!rect || rect.width === 0 && rect.height === 0) {
+            hideOverlay(overlay);
+            return;
           }
-          
-          // 清除选中样式
+          overlay.style.display = 'block';
+          overlay.style.top = rect.top + 'px';
+          overlay.style.left = rect.left + 'px';
+          overlay.style.width = rect.width + 'px';
+          overlay.style.height = rect.height + 'px';
+        }
+
+        function updateOverlays() {
+          if (!isEditMode) {
+            hideOverlay(hoverOverlay);
+            hideOverlay(selectedOverlay);
+            return;
+          }
+          // 选中框优先
           if (selectedElement) {
-            restoreOriginalStyle(selectedElement);
-            selectedElement = null;
+            positionOverlayForElement(selectedOverlay, selectedElement);
+          } else {
+            hideOverlay(selectedOverlay);
           }
+
+          // 悬浮框不覆盖选中元素
+          if (hoverElement && hoverElement !== selectedElement) {
+            positionOverlayForElement(hoverOverlay, hoverElement);
+          } else {
+            hideOverlay(hoverOverlay);
+          }
+        }
+
+        function clearAllHighlights() {
+          // 如果页面里还残留旧实现写入的 border，尽量清掉（只清理命中的那两个元素）
+          if (hoverElement) clearLegacyBorder(hoverElement);
+          if (selectedElement) clearLegacyBorder(selectedElement);
+          hoverElement = null;
+          selectedElement = null;
+          hideOverlay(hoverOverlay);
+          hideOverlay(selectedOverlay);
         }
         
         // 获取元素选择器
@@ -292,13 +336,8 @@ export class VisualEditor {
             return;
           }
           
-          // 清除之前的悬浮样式
-          if (hoverElement && hoverElement !== element) {
-            restoreOriginalStyle(hoverElement);
-          }
-          
           hoverElement = element;
-          applyHoverStyle(element);
+          updateOverlays();
         }
         
         // 鼠标离开事件
@@ -310,8 +349,9 @@ export class VisualEditor {
           
           // 只有当鼠标真正离开元素时才清除样式
           if (!element.contains(event.relatedTarget) && element === hoverElement) {
-            restoreOriginalStyle(element);
+            clearLegacyBorder(element);
             hoverElement = null;
+            updateOverlays();
           }
         }
         
@@ -329,13 +369,10 @@ export class VisualEditor {
             return;
           }
           
-          // 清除之前选中的元素样式
-          if (selectedElement) {
-            restoreOriginalStyle(selectedElement);
-          }
-          
           selectedElement = element;
-          applySelectedStyle(element);
+          // 选中时如果旧实现已经给该元素上了红/蓝边框，先清掉，避免“双框”
+          clearLegacyBorder(element);
+          updateOverlays();
           
           // 向父窗口发送选中元素信息
           const elementInfo = createElementInfo(element);
@@ -344,37 +381,51 @@ export class VisualEditor {
             data: elementInfo
           }, '*');
         }
+
+        function handleScrollOrResize() {
+          if (!isEditMode) return;
+          updateOverlays();
+        }
         
         // 启用编辑模式
         function enableEditMode() {
           isEditMode = true;
           document.body.style.userSelect = 'none';
+          document.body.style.cursor = 'crosshair';
           
           // 添加事件监听器
           document.addEventListener('mouseover', handleMouseOver, true);
           document.addEventListener('mouseout', handleMouseOut, true);
           document.addEventListener('click', handleClick, true);
+          window.addEventListener('scroll', handleScrollOrResize, true);
+          window.addEventListener('resize', handleScrollOrResize, true);
+
+          updateOverlays();
         }
         
         // 禁用编辑模式
         function disableEditMode() {
           isEditMode = false;
           document.body.style.userSelect = '';
+          document.body.style.cursor = '';
           
           // 移除事件监听器
           document.removeEventListener('mouseover', handleMouseOver, true);
           document.removeEventListener('mouseout', handleMouseOut, true);
           document.removeEventListener('click', handleClick, true);
+          window.removeEventListener('scroll', handleScrollOrResize, true);
+          window.removeEventListener('resize', handleScrollOrResize, true);
           
-          // 清除所有样式
-          clearAllStyles();
+          // 清除高亮
+          clearAllHighlights();
         }
         
         // 清除选择
         function clearSelection() {
           if (selectedElement) {
-            restoreOriginalStyle(selectedElement);
+            clearLegacyBorder(selectedElement);
             selectedElement = null;
+            updateOverlays();
             
             window.parent.postMessage({
               type: 'ELEMENT_CLEARED'

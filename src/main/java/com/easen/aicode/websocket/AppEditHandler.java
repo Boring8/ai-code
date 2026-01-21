@@ -208,6 +208,7 @@ public class AppEditHandler extends TextWebSocketHandler {
             log.info("AI 正在回答 {}", user.getUserName());
             appResponseMessage.setType(appRequestMessage.getType());
             appResponseMessage.setEditAction(appRequestMessage.getEditAction());
+            appResponseMessage.setStreamType(appRequestMessage.getStreamType());
             appResponseMessage.setUser(userService.getUserVO(user));
             // 广播给除了当前客户端之外的其他用户，否则会造成重复编辑
             broadcastToApp(appId, appResponseMessage, session);

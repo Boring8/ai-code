@@ -1,25 +1,18 @@
 package com.easen.aicode.service.impl;
 
 
-import com.easen.aicode.common.PageRequest;
-import com.easen.aicode.constant.ThumbConstant;
-import com.easen.aicode.hotkey.annotation.HotKeyCache;
+//import com.easen.aicode.hotkey.annotation.HotKeyCache;
+import com.easen.aicode.mapper.AppMapper;
 import com.easen.aicode.mapper.ThumbMapper;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.Thumb;
 import com.easen.aicode.model.vo.AppThumbVO;
-import com.easen.aicode.service.AppService;
 import com.easen.aicode.service.ThumbService;
 import com.easen.aicode.utils.ThumbHotKeyUtil;
 import com.easen.aicode.utils.RedisKeyUtil;
-import com.mybatisflex.core.paginate.Page;
-import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,7 +39,7 @@ import static com.easen.aicode.constant.ThumbConstant.RANK_KEY;
 public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb> implements ThumbService {
 
     @Resource
-    private AppService appService;
+    private AppMapper appMapper;
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -58,19 +51,22 @@ public class ThumbServiceImpl extends ServiceImpl<ThumbMapper, Thumb> implements
     @Override
     public List<AppThumbVO> appThumbList() {
         Set<ZSetOperations.TypedTuple<Object>> set = redisTemplate.opsForZSet().reverseRangeWithScores(RANK_KEY, 0, 7);
+        if (set == null || set.isEmpty()) {
+            return Collections.emptyList();
+        }
         return set.stream()
                 .map(tuple -> {
                     Long appId = (Long) tuple.getValue();
                     Double score = tuple.getScore();
-                        App app = appService.getById(appId);
-                        if (app == null) {
-                            return null;
-                        }
-                        AppThumbVO appThumbVO = new AppThumbVO();
-                        appThumbVO.setId(app.getId());
-                        appThumbVO.setAppName(app.getAppName());
-                        appThumbVO.setThumbCount(score.intValue());
-                        return appThumbVO;
+                    App app = appMapper.selectOneById(appId);
+                    if (app == null) {
+                        return null;
+                    }
+                    AppThumbVO appThumbVO = new AppThumbVO();
+                    appThumbVO.setId(app.getId());
+                    appThumbVO.setAppName(app.getAppName());
+                    appThumbVO.setThumbCount(score.intValue());
+                    return appThumbVO;
                 })
                 .filter(appThumbVO -> appThumbVO != null)
                 .collect(java.util.stream.Collectors.toList());

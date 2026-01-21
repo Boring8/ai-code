@@ -91,23 +91,38 @@ public class AppController {
         User loginUser = userService.getLoginUser(request);
         //调用工作流生成代码
         Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser, image);
-        // 转换为 ServerSentEvent 格式
-        return contentFlux
-                .map(chunk -> {
-                    // 将内容包装成JSON对象
-                    Map<String, String> wrapper = Map.of("d", chunk);
-                    String jsonData = JSONUtil.toJsonStr(wrapper);
-                    return ServerSentEvent.<String>builder()
-                            .data(jsonData)
-                            .build();
-                })
-                .concatWith(Mono.just(
-                        // 发送结束事件
-                        ServerSentEvent.<String>builder()
-                                .event("done")
-                                .data("")
-                                .build()
-                ));
+        // 转换为 ServerSentEvent 格式（按类型分事件：explain / code / done）
+        // 说明：contentFlux 保持仅包含“代码/生成内容”的真实流，不将说明写入聊天历史。
+        Flux<ServerSentEvent<String>> explainStart = Mono.just(
+                ServerSentEvent.<String>builder()
+                        .event("explain")
+                        .data(JSONUtil.toJsonStr(Map.of("d", "开始生成：代码将实时输出到右侧“代码”面板，左侧仅显示说明。")))
+                        .build()
+        ).flux();
+
+        Flux<ServerSentEvent<String>> codeEvents = contentFlux.map(chunk -> {
+            String jsonData = JSONUtil.toJsonStr(Map.of("d", chunk));
+            return ServerSentEvent.<String>builder()
+                    .event("code")
+                    .data(jsonData)
+                    .build();
+        });
+
+        Flux<ServerSentEvent<String>> explainEnd = Mono.just(
+                ServerSentEvent.<String>builder()
+                        .event("explain")
+                        .data(JSONUtil.toJsonStr(Map.of("d", "\n\n生成完成：正在刷新预览...")))
+                        .build()
+        ).flux();
+
+        Flux<ServerSentEvent<String>> doneEvent = Mono.just(
+                ServerSentEvent.<String>builder()
+                        .event("done")
+                        .data("")
+                        .build()
+        ).flux();
+
+        return Flux.concat(explainStart, codeEvents, explainEnd, doneEvent);
     }
 
     /**

@@ -7,7 +7,6 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.ai.*;
 import com.easen.aicode.constant.AppConstant;
-import com.easen.aicode.constant.ThumbConstant;
 import com.easen.aicode.core.AiCodeGeneratorFacade;
 import com.easen.aicode.core.AppResourceCleaner;
 import com.easen.aicode.core.builder.VueProjectBuilder;
@@ -15,16 +14,17 @@ import com.easen.aicode.core.hander.StreamHandlerExecutor;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.exception.ThrowUtils;
-import com.easen.aicode.langgraph4j.CodeGenConcurrentWorkflow;
 import com.easen.aicode.model.dto.app.AppAddRequest;
 import com.easen.aicode.model.dto.app.AppQueryRequest;
 import com.easen.aicode.model.entity.App;
+import com.easen.aicode.model.entity.CodeVersion;
+import com.easen.aicode.model.entity.Thumb;
 import com.easen.aicode.mapper.AppMapper;
 import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.*;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.*;
-import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
+import com.easen.aicode.utils.ThumbHotKeyUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
@@ -41,9 +41,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import com.easen.aicode.model.vo.AppThumbDetailVO;
-import com.easen.aicode.service.ThumbService;
 
 /**
  * 应用 服务层实现。
@@ -83,6 +80,15 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AiCodeGeneratorServiceFactory aiCodeGeneratorServiceFactory;
+
+    @Resource
+    private CodeVersionService codeVersionService;
+
+    @Resource
+    private ThumbService thumbService;
+
+    @Resource
+    private ThumbHotKeyUtil thumbHotKeyUtil;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser, List<String> images) {
@@ -309,22 +315,55 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         App app = this.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
 
-        // 3. 删除应用相关的聊天记录
+        // 3. 查询当前已落库的点赞用户（用于清理用户维度点赞缓存；不扫描全量用户）
+        List<Thumb> thumbRecordList = thumbService.list(QueryWrapper.create()
+                .select("userId")
+                .eq(Thumb::getAppId, appId));
+
+        // 4. 删除应用相关的代码版本记录（code_version 逻辑删）
+        boolean codeVersionsDeleted = codeVersionService.remove(QueryWrapper.create()
+                .eq(CodeVersion::getAppId, appId));
+        log.info("删除应用 {} 的代码版本记录，结果：{}", appId, codeVersionsDeleted);
+
+        // 5. 删除应用相关的点赞记录（thumb 物理删）
+        boolean thumbsDeleted = thumbService.remove(QueryWrapper.create()
+                .eq(Thumb::getAppId, appId));
+        log.info("删除应用 {} 的点赞记录，结果：{}", appId, thumbsDeleted);
+
+        // 6. 删除应用相关的聊天记录
         boolean chatHistoryDeleted = chatHistoryService.deleteByAppId(appId);
         log.info("删除应用 {} 的聊天记录，结果：{}", appId, chatHistoryDeleted);
 
-        // 4. 删除应用团队成员关联关系
+        // 7. 删除应用团队成员关联关系
         boolean teamMembersDeleted = appUserService.removeAllUsersFromApp(appId);
         log.info("删除应用 {} 的团队成员，结果：{}", appId, teamMembersDeleted);
 
-        // 5. 删除应用本身
+        // 8. 删除应用本身
         boolean appDeleted = this.removeById(appId);
         log.info("删除应用 {}，结果：{}", appId, appDeleted);
 
-        // 6. 使用 AppResourceCleaner 异步清理应用相关的文件资源
+        // 9. 删除成功后，清理点赞缓存（用户维度 hash + 排行榜）
+        if (appDeleted) {
+            try {
+                if (CollUtil.isNotEmpty(thumbRecordList)) {
+                    for (Thumb thumb : thumbRecordList) {
+                        if (thumb == null || thumb.getUserId() == null) {
+                            continue;
+                        }
+                        thumbHotKeyUtil.removeUserThumb(thumb.getUserId(), appId);
+                    }
+                }
+                // 兜底：直接移除排行榜，避免残留无效 appId
+                thumbHotKeyUtil.removeAppFromRank(appId);
+            } catch (Exception e) {
+                log.warn("清理应用 {} 的点赞缓存失败：{}", appId, e.getMessage());
+            }
+        }
+
+        // 10. 使用 AppResourceCleaner 异步清理应用相关的文件资源
         appResourceCleaner.cleanupAppResourcesAsync(app);
 
-        // 7. 返回删除操作结果
+        // 11. 返回删除操作结果
         return appDeleted;
     }
 
