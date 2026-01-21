@@ -109,6 +109,11 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 5. 构建包含图片的完整消息
         String fullMessage = buildMessageWithImages(message, images);
 
+        // Step_0：首次生成 / 后续编辑 分流（基于 index.html 是否存在）
+        // 注意：当前仅记录状态，后续 Step_1+ 才会真正切到增量编辑链路
+        boolean htmlIndexExists = isHtmlIndexFileExists(appId);
+        log.info("chatToGenCode mode route, appId={}, htmlIndexExists={}", appId, htmlIndexExists);
+
         // 6. 在调用 AI 前，先保存用户消息到数据库中
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(), images);
 
@@ -118,6 +123,19 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 8. 收集 AI 响应的内容，并且在完成后保存记录到对话历史
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, CodeGenTypeEnum.HTML);
 
+    }
+
+    /**
+     * 判断 HTML 单文件模式的 index.html 是否已存在
+     */
+    private boolean isHtmlIndexFileExists(Long appId) {
+        if (appId == null || appId <= 0) {
+            return false;
+        }
+        String dirName = CodeGenTypeEnum.HTML.getValue() + "_" + appId;
+        String indexPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + dirName + File.separator + "index.html";
+        File indexFile = new File(indexPath);
+        return indexFile.exists() && indexFile.isFile();
     }
 
     /**

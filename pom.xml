@@ -197,6 +197,12 @@
             <artifactId>hutool-all</artifactId>
             <version>5.8.38</version>
         </dependency>
+        <!-- HTML DOM 解析与选择器支持（用于注入稳定锚点 / 后续 AST 编辑） -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.22.1</version>
+        </dependency>
         <!--手动将hotkey引入Maven,详细看README.md介绍-->
         <dependency>
             <groupId>com.jd.platform.hotkey</groupId>
