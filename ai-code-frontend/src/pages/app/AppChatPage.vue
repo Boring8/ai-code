@@ -285,7 +285,7 @@
       <!-- 右侧网页展示区域 -->
       <div class="preview-section">
         <div class="preview-header">
-          <h3>
+          <h3 class="preview-title">
             <span v-if="isOtherUserGenerating && otherGeneratingUser">
               {{ otherGeneratingUser.userName }} 生成的网页展示
             </span>
@@ -293,6 +293,12 @@
               生成后的网页展示
             </span>
           </h3>
+          <div class="preview-tabs">
+            <a-tabs v-model:activeKey="activeRightTab" class="right-tabs right-tabs--header" :animated="false">
+              <a-tab-pane key="code" tab="代码" />
+              <a-tab-pane key="preview" tab="预览" />
+            </a-tabs>
+          </div>
           <div class="preview-actions">
             <a-button v-if="previewUrl && !isGenerating && !isOtherUserGenerating" type="link" @click="openInNewTab">
               <template #icon>
@@ -303,52 +309,46 @@
           </div>
         </div>
         <div class="preview-content">
-          <a-tabs v-model:activeKey="activeRightTab" class="right-tabs">
-            <a-tab-pane key="code" tab="代码">
-              <div class="code-toolbar">
-                <div class="code-toolbar-left">
-                  <a-tag v-if="isGenerating" color="blue">生成中</a-tag>
-                  <a-tag v-else-if="isOtherUserGenerating && otherGeneratingUser" color="orange">
-                    {{ otherGeneratingUser.userName }} 生成中
-                  </a-tag>
-                  <a-tag v-else color="green">就绪</a-tag>
-                </div>
-                <div class="code-toolbar-right">
-                  <a-button type="link" size="small" :disabled="!codeContent" @click="copyCode">
-                    复制
-                  </a-button>
-                  <a-button type="link" size="small" :disabled="!codeContent" @click="clearCode">
-                    清空
-                  </a-button>
-                </div>
+          <div v-show="activeRightTab === 'code'" class="right-tabpane">
+            <div class="code-toolbar">
+              <div class="code-toolbar-left">
+                <a-tag v-if="isGenerating" color="blue">生成中</a-tag>
+                <a-tag v-else-if="isOtherUserGenerating && otherGeneratingUser" color="orange">
+                  {{ otherGeneratingUser.userName }} 生成中
+                </a-tag>
+                <a-tag v-else color="green">就绪</a-tag>
               </div>
-              <div ref="codeContainer" class="code-panel">
-                <pre class="code-pre">{{ codeContent || '代码将在这里实时输出…' }}</pre>
+              <div class="code-toolbar-right">
+                <a-button type="link" size="small" :disabled="!codeContent" @click="copyCode">复制</a-button>
               </div>
-            </a-tab-pane>
-            <a-tab-pane key="preview" tab="预览">
-              <div v-if="!previewUrl && !isGenerating && !isOtherUserGenerating" class="preview-placeholder">
-                <div class="placeholder-icon">🌐</div>
-                <p>网站文件生成完成后将在这里展示</p>
-              </div>
-              <div v-else-if="isGenerating" class="preview-loading">
-                <a-spin size="large" />
-                <p>正在生成网站...</p>
-              </div>
-              <div v-else-if="isOtherUserGenerating && otherGeneratingUser" class="preview-loading">
-                <a-spin size="large" />
-                <p>{{ otherGeneratingUser.userName }} 正在生成网站...</p>
-              </div>
-              <iframe
-                v-else
-                ref="previewIframe"
-                :src="previewUrl"
-                class="preview-iframe"
-                frameborder="0"
-                @load="onIframeLoad"
-              ></iframe>
-            </a-tab-pane>
-          </a-tabs>
+            </div>
+            <div ref="codeContainer" class="code-panel">
+              <MonacoCodeViewer :value="codeContent" placeholder="代码将在这里实时输出…" />
+            </div>
+          </div>
+
+          <div v-show="activeRightTab === 'preview'" class="right-tabpane">
+            <div v-if="!previewUrl && !isGenerating && !isOtherUserGenerating" class="preview-placeholder">
+              <div class="placeholder-icon">🌐</div>
+              <p>网站文件生成完成后将在这里展示</p>
+            </div>
+            <div v-else-if="isGenerating" class="preview-loading">
+              <a-spin size="large" />
+              <p>正在生成网站...</p>
+            </div>
+            <div v-else-if="isOtherUserGenerating && otherGeneratingUser" class="preview-loading">
+              <a-spin size="large" />
+              <p>{{ otherGeneratingUser.userName }} 正在生成网站...</p>
+            </div>
+            <iframe
+              v-else
+              ref="previewIframe"
+              :src="previewUrl"
+              class="preview-iframe"
+              frameborder="0"
+              @load="onIframeLoad"
+            ></iframe>
+          </div>
         </div>
       </div>
     </div>
@@ -394,6 +394,7 @@ import request from '@/request'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import AppDetailModal from '@/components/AppDetailModal.vue'
 import DeploySuccessModal from '@/components/DeploySuccessModal.vue'
+import MonacoCodeViewer from '@/components/MonacoCodeViewer.vue'
 import aiAvatar from '@/assets/logo.png'
 import { API_BASE_URL, getStaticPreviewUrl } from '@/config/env'
 import { toAppIdNumber, toAppIdString, getAppIdForApi } from '@/utils/appIdUtils'
@@ -2283,20 +2284,36 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 0;
   flex-shrink: 0;
   background: white;
+  gap: 12px;
 }
 
-.preview-header h3 {
+.preview-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-tabs {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-tabs :deep(.ant-tabs) {
+  width: fit-content;
 }
 
 .preview-actions {
   display: flex;
   gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .preview-content {
@@ -2310,16 +2327,65 @@ onUnmounted(() => {
   height: 100%;
 }
 
+.right-tabs--header {
+  height: auto;
+}
+
+.right-tabs--header :deep(.ant-tabs-nav) {
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.right-tabs--header :deep(.ant-tabs-content-holder) {
+  display: none;
+}
+
+.right-tabpane {
+  height: 100%;
+}
+
 .right-tabs :deep(.ant-tabs-nav) {
   margin: 0;
 }
 
 .right-tabs :deep(.ant-tabs-nav-wrap) {
-  padding: 0 12px;
+  padding: 0;
+}
+
+.right-tabs :deep(.ant-tabs-nav-list) {
+  background: rgba(24, 144, 255, 0.08);
+  border: 1px solid rgba(24, 144, 255, 0.18);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
 }
 
 .right-tabs :deep(.ant-tabs-tab) {
-  padding: 10px 0;
+  padding: 6px 14px;
+  margin: 0;
+  border-radius: 999px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.right-tabs :deep(.ant-tabs-tab .ant-tabs-tab-btn) {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.right-tabs :deep(.ant-tabs-tab:hover) {
+  background: rgba(24, 144, 255, 0.12);
+}
+
+.right-tabs :deep(.ant-tabs-tab.ant-tabs-tab-active) {
+  background: #1677ff;
+}
+
+.right-tabs :deep(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #ffffff;
+}
+
+.right-tabs :deep(.ant-tabs-ink-bar) {
+  display: none;
 }
 
 .right-tabs :deep(.ant-tabs-content-holder) {
@@ -2340,22 +2406,31 @@ onUnmounted(() => {
   align-items: center;
   padding: 8px 12px;
   border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
+}
+
+.code-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.code-toolbar-right :deep(.ant-btn-link) {
+  padding: 0 6px;
+  height: 24px;
+  line-height: 24px;
+  border-radius: 6px;
+}
+
+.code-toolbar-right :deep(.ant-btn-link:not(:disabled)):hover {
+  background: rgba(24, 144, 255, 0.08);
 }
 
 .code-panel {
   height: calc(100% - 42px);
-  overflow: auto;
-  background: #0b1020;
-}
-
-.code-pre {
-  margin: 0;
-  padding: 12px;
-  color: #e6edf3;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre;
+  overflow: hidden;
+  background: #0d1117;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .preview-placeholder {
