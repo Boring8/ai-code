@@ -10,6 +10,7 @@ import com.easen.aicode.ai.model.message.AiResponseMessage;
 import com.easen.aicode.ai.model.message.ToolExecutedMessage;
 import com.easen.aicode.ai.model.message.ToolRequestMessage;
 import com.easen.aicode.constant.AppConstant;
+import com.easen.aicode.core.anchorPoint.HtmlStableAnchorInjector;
 import com.easen.aicode.core.builder.VueProjectBuilder;
 import com.easen.aicode.core.parser.CodeParserExecutor;
 import com.easen.aicode.core.saver.CodeFileSaverExecutor;
@@ -170,16 +171,28 @@ public class AiCodeGeneratorFacade {
                         // 流式返回完成后，保存代码
                         try {
                             String completeCode = codeBuilder.toString();
+                            // 使用执行器解析代码
+                            Object parsedResult = CodeParserExecutor.executeParser(completeCode, codeGenType);
                             // 生成完成后，写入一条代码版本记录（用于进入页面恢复代码面板）
                             try {
-                                codeVersionService.addCodeVersion(appId, codeGenType.getValue(), completeCode, userId);
+                                // contentWithAnchor：仅存 canonical HTML（带稳定锚点，用于后续增量编辑/定位）
+                                String htmlForAnchor = null;
+
+                                if (parsedResult instanceof HtmlCodeResult htmlCodeResult) {
+                                    htmlForAnchor = htmlCodeResult.getHtmlCode();
+                                } else if (parsedResult instanceof MultiFileCodeResult multiFileCodeResult) {
+                                    htmlForAnchor = multiFileCodeResult.getHtmlCode();
+                                }
+                                String anchoredHtml = (htmlForAnchor == null || htmlForAnchor.isBlank())
+                                        ? ""
+                                        : HtmlStableAnchorInjector.injectStableAnchors(htmlForAnchor);
+                                codeVersionService.addCodeVersion(appId, codeGenType.getValue(), htmlForAnchor, anchoredHtml, userId);
                             } catch (Exception e) {
                                 log.error("写入代码版本失败: {}", e.getMessage(), e);
                             }
-                            // 使用执行器解析代码
-                            Object parsedResult = CodeParserExecutor.executeParser(completeCode, codeGenType);
                             // 使用执行器保存代码
                             File saveDir = CodeFileSaverExecutor.executeSaver(parsedResult, codeGenType, appId);
+
                             log.info("保存成功，目录为：{}", saveDir.getAbsolutePath());
                         } catch (Exception e) {
                             log.error("保存失败: {}", e.getMessage());

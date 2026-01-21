@@ -4,10 +4,12 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.easen.aicode.ai.model.HtmlCodeResult;
 import com.easen.aicode.ai.model.message.*;
 import com.easen.aicode.ai.tools.BaseTool;
 import com.easen.aicode.ai.tools.ToolManager;
 import com.easen.aicode.constant.AppConstant;
+import com.easen.aicode.core.anchorPoint.HtmlStableAnchorInjector;
 import com.easen.aicode.core.builder.VueProjectBuilder;
 import com.easen.aicode.model.enums.CodeGenTypeEnum;
 import com.easen.aicode.model.entity.User;
@@ -72,9 +74,10 @@ public class JsonMessageStreamHandler {
                     // 流式响应完成后，添加 AI 消息到对话历史
                     String aiResponse = chatHistoryStringBuilder.toString();
                     chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId(), ChatHistoryStatusEnum.NORMAL.getValue(),null);
-                    // 同时写入代码版本（面板文本）
+                    // 同时写入代码版本
+                    // HTML：从解析后的 cleanHtml 生成 canonical(带锚点)，并确保落盘的 htmlCode 不带锚点
                     try {
-                        codeVersionService.addCodeVersion(appId, CodeGenTypeEnum.VUE_PROJECT.getValue(), panelContentBuilder.toString(), loginUser.getId());
+                        codeVersionService.addCodeVersion(appId, CodeGenTypeEnum.VUE_PROJECT.getValue(), panelContentBuilder.toString(),HtmlStableAnchorInjector.injectStableAnchors(panelContentBuilder.toString()), loginUser.getId());
                     } catch (Exception e) {
                         log.error("写入代码版本失败: {}", e.getMessage(), e);
                     }

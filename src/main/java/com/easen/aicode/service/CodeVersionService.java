@@ -9,9 +9,10 @@ import com.mybatisflex.core.service.IService;
 public interface CodeVersionService extends IService<CodeVersion> {
 
     /**
-     * 保存一条代码版本（代码面板文本）。
+     * 保存一条代码版本（同时写入 canonical HTML：带 data-aicode-id 锚点）。
+     * 对外展示仍应使用 content 字段。
      */
-    boolean addCodeVersion(Long appId, String codeGenType, String content, Long userId);
+    boolean addCodeVersion(Long appId, String codeGenType,  String contentWithAnchor, Long userId);
 
 }
 
