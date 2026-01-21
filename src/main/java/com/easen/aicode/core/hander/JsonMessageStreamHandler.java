@@ -77,7 +77,7 @@ public class JsonMessageStreamHandler {
                     // 同时写入代码版本
                     // HTML：从解析后的 cleanHtml 生成 canonical(带锚点)，并确保落盘的 htmlCode 不带锚点
                     try {
-                        codeVersionService.addCodeVersion(appId, CodeGenTypeEnum.VUE_PROJECT.getValue(), panelContentBuilder.toString(),HtmlStableAnchorInjector.injectStableAnchors(panelContentBuilder.toString()), loginUser.getId());
+                        codeVersionService.addCodeVersion(appId, CodeGenTypeEnum.VUE_PROJECT.getValue(),HtmlStableAnchorInjector.injectStableAnchors(panelContentBuilder.toString()), loginUser.getId());
                     } catch (Exception e) {
                         log.error("写入代码版本失败: {}", e.getMessage(), e);
                     }

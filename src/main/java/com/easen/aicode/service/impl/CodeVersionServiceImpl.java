@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 public class CodeVersionServiceImpl extends ServiceImpl<CodeVersionMapper, CodeVersion> implements CodeVersionService {
 
     @Override
-    public boolean addCodeVersion(Long appId, String codeGenType, String content, String contentWithAnchor, Long userId) {
+    public boolean addCodeVersion(Long appId, String codeGenType,String contentWithAnchor, Long userId) {
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID不能为空");
         ThrowUtils.throwIf(StrUtil.isBlank(codeGenType), ErrorCode.PARAMS_ERROR, "代码生成类型不能为空");
         ThrowUtils.throwIf(userId == null || userId <= 0, ErrorCode.PARAMS_ERROR, "用户ID不能为空");

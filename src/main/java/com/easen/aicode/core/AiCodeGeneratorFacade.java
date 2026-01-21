@@ -186,7 +186,7 @@ public class AiCodeGeneratorFacade {
                                 String anchoredHtml = (htmlForAnchor == null || htmlForAnchor.isBlank())
                                         ? ""
                                         : HtmlStableAnchorInjector.injectStableAnchors(htmlForAnchor);
-                                codeVersionService.addCodeVersion(appId, codeGenType.getValue(), htmlForAnchor, anchoredHtml, userId);
+                                codeVersionService.addCodeVersion(appId, codeGenType.getValue(),  anchoredHtml, userId);
                             } catch (Exception e) {
                                 log.error("写入代码版本失败: {}", e.getMessage(), e);
                             }
