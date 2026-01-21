@@ -21,14 +21,5 @@ public class CodeVersionController {
     @Resource
     private CodeVersionService codeVersionService;
 
-    /**
-     * 查询最新的代码面板文本（无记录返回空字符串）
-     */
-    @GetMapping("/latest")
-    @SaSpaceCheckPermission(value = AppUserPermissionConstant.APP_VIEW)
-    public BaseResponse<String> getLatest(@RequestParam Long appId) {
-        String content = codeVersionService.getLatestContent(appId);
-        return ResultUtils.success(content);
-    }
 }
 

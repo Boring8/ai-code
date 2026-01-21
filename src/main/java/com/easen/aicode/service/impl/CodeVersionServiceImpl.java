@@ -34,21 +34,5 @@ public class CodeVersionServiceImpl extends ServiceImpl<CodeVersionMapper, CodeV
         return this.save(version);
     }
 
-    @Override
-    public String getLatestContent(Long appId) {
-        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID不能为空");
-
-        QueryWrapper query = QueryWrapper.create()
-                .eq(CodeVersion::getAppId, appId)
-                .orderBy(CodeVersion::getCreateTime, false)
-                // createTime 可能为空/相同，用 id 做二级排序更稳定
-                .orderBy(CodeVersion::getId, false)
-                .limit(1);
-        CodeVersion latest = this.getOne(query);
-        if (latest == null || latest.getContent() == null) {
-            return "";
-        }
-        return latest.getContent();
-    }
 }
 

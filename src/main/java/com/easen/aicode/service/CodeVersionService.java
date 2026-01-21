@@ -13,9 +13,5 @@ public interface CodeVersionService extends IService<CodeVersion> {
      */
     boolean addCodeVersion(Long appId, String codeGenType, String content, Long userId);
 
-    /**
-     * 查询最新一条代码面板文本（无记录返回空字符串）。
-     */
-    String getLatestContent(Long appId);
 }
 
