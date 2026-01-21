@@ -381,6 +381,7 @@ import {
   getAppById,
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
+  deleteMyApp as deleteMyAppApi,
   downloadAppCode,
   cancelCodeGeneration,
 } from '@/api/appController'
@@ -1731,7 +1732,10 @@ const deleteApp = async () => {
   if (!appInfo.value?.id) return
 
   try {
-    const res = await deleteAppApi({ id: appInfo.value.id })
+    // 管理员删除任意应用走 /app/delete；非管理员（本人/有权限）走 /app/delete/my
+    const res = isAdmin.value
+      ? await deleteAppApi({ id: appInfo.value.id })
+      : await deleteMyAppApi({ id: appInfo.value.id })
     if (res.data.code === 0) {
       message.success('删除成功')
       appDetailVisible.value = false
