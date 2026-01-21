@@ -3,7 +3,7 @@ package com.easen.aicode.service.impl;
 
 import com.easen.aicode.common.PageRequest;
 import com.easen.aicode.constant.ThumbConstant;
-import com.easen.aicode.hotkey.annotation.HotKeyCache;
+//import com.easen.aicode.hotkey.annotation.HotKeyCache;
 import com.easen.aicode.mapper.ThumbMapper;
 import com.easen.aicode.model.entity.App;
 import com.easen.aicode.model.entity.Thumb;
@@ -17,7 +17,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
+//import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;

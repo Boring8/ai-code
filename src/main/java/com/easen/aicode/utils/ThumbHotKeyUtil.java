@@ -3,7 +3,7 @@ package com.easen.aicode.utils;
 import com.easen.aicode.constant.ThumbConstant;
 import com.easen.aicode.mapper.ThumbMapper;
 import com.easen.aicode.model.entity.Thumb;
-import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
+//import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -44,20 +44,20 @@ public class ThumbHotKeyUtil {
 
         String userThumbKey = ThumbConstant.USER_THUMB_KEY_PREFIX + userId;
 
-        String userThumbHotKey = ThumbConstant.APP_THUMB_HOTKEY_PREFIX + userId + "_" + appIdStr;
-        // 1) 先尝试从热键本地缓存获取
-        if (JdHotKeyStore.isHotKey(userThumbHotKey)) {
-            Object cached = JdHotKeyStore.get(userThumbHotKey);
-            if (cached != null) {
-                log.debug("热键本地缓存命中，userId: {}, appId: {}", userId, appId);
-                return true;
-            }
-        }
+//        String userThumbHotKey = ThumbConstant.APP_THUMB_HOTKEY_PREFIX + userId + "_" + appIdStr;
+//        // 1) 先尝试从热键本地缓存获取
+//        if (JdHotKeyStore.isHotKey(userThumbHotKey)) {
+//            Object cached = JdHotKeyStore.get(userThumbHotKey);
+//            if (cached != null) {
+//                log.debug("热键本地缓存命中，userId: {}, appId: {}", userId, appId);
+//                return true;
+//            }
+//        }
 
         // 2) 再查 Redis
         Boolean existInRedis = redisTemplate.opsForHash().hasKey(userThumbKey, appIdStr);
         if (Boolean.TRUE.equals(existInRedis)) {
-            JdHotKeyStore.smartSet(userThumbHotKey, null);
+//            JdHotKeyStore.smartSet(userThumbHotKey, null);
             return true;
         }
 

@@ -197,12 +197,12 @@
             <artifactId>hutool-all</artifactId>
             <version>5.8.38</version>
         </dependency>
-        <!--手动将hotkey引入Maven,详细看README.md介绍-->
-        <dependency>
-            <groupId>com.jd.platform.hotkey</groupId>
-            <artifactId>hotkey-client</artifactId>
-            <version>0.0.4-SNAPSHOT</version>
-        </dependency>
+<!--        &lt;!&ndash;手动将hotkey引入Maven,详细看README.md介绍&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>com.jd.platform.hotkey</groupId>-->
+<!--            <artifactId>hotkey-client</artifactId>-->
+<!--            <version>0.0.4-SNAPSHOT</version>-->
+<!--        </dependency>-->
     </dependencies>
 
     <build>

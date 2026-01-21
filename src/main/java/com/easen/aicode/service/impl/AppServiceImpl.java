@@ -24,7 +24,7 @@ import com.easen.aicode.model.entity.User;
 import com.easen.aicode.model.enums.*;
 import com.easen.aicode.model.vo.AppVO;
 import com.easen.aicode.service.*;
-import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
+//import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;

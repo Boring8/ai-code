@@ -23,10 +23,10 @@ public interface ThumbConstant {
     /**
      * 用户点赞 hotkey key
      */
-    String APP_THUMB_HOTKEY_PREFIX = "app_thumb_";
+//    String APP_THUMB_HOTKEY_PREFIX = "app_thumb_";
 
     /**
      * 用户点赞 hotkey key
      */
-    String APP_ID_HOTKEY_PREFIX = "app_id_";
+//    String APP_ID_HOTKEY_PREFIX = "app_id_";
 }
