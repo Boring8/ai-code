@@ -41,8 +41,9 @@ public class CodeVersionServiceImpl extends ServiceImpl<CodeVersionMapper, CodeV
         QueryWrapper query = QueryWrapper.create()
                 .eq(CodeVersion::getAppId, appId)
                 .orderBy(CodeVersion::getCreateTime, false)
-                // MyBatis-Flex: limit(offset, pageSize)
-                .limit(1, 1);
+                // createTime 可能为空/相同，用 id 做二级排序更稳定
+                .orderBy(CodeVersion::getId, false)
+                .limit(1);
         CodeVersion latest = this.getOne(query);
         if (latest == null || latest.getContent() == null) {
             return "";

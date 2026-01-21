@@ -97,6 +97,11 @@ dashscope:
   api-key: <Your API Key>
   image-model: wan2.2-t2i-flash
 
+# MyBatis-Flex：打印 SQL 到控制台（仅建议在本地环境开启）
+mybatis-flex:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
 # Sa-Token 配置
 sa-token:
   # token 名称（同时也是 cookie 名称）
