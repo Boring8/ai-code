@@ -48,6 +48,12 @@ public class CodeVersion implements Serializable {
     private String content;
 
     /**
+     * 带稳定锚点的 canonical HTML（仅内部用于增量编辑/定位；对外展示应使用 content）
+     */
+    @Column("contentWithAnchor")
+    private String contentWithAnchor;
+
+    /**
      * 创建用户 id
      */
     @Column("userId")

@@ -2,7 +2,6 @@ package com.easen.aicode.core.saver;
 
 import cn.hutool.core.util.StrUtil;
 import com.easen.aicode.ai.model.HtmlCodeResult;
-import com.easen.aicode.core.anchorPoint.HtmlStableAnchorInjector;
 import com.easen.aicode.exception.BusinessException;
 import com.easen.aicode.exception.ErrorCode;
 import com.easen.aicode.model.enums.CodeGenTypeEnum;
@@ -21,8 +20,7 @@ public class HtmlCodeFileSaverTemplate extends CodeFileSaverTemplate<HtmlCodeRes
     @Override
     protected void saveFiles(HtmlCodeResult result, String baseDirPath) {
         // 保存 HTML 文件
-        String htmlWithAnchors = HtmlStableAnchorInjector.injectStableAnchors(result.getHtmlCode());
-        writeToFile(baseDirPath, "index.html", htmlWithAnchors);
+        writeToFile(baseDirPath, "index.html", result.getHtmlCode());
     }
 
     @Override
