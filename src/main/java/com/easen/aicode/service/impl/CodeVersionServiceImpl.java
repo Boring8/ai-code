@@ -28,7 +28,6 @@ public class CodeVersionServiceImpl extends ServiceImpl<CodeVersionMapper, CodeV
         CodeVersion version = CodeVersion.builder()
                 .appId(appId)
                 .codeGenType(codeGenType)
-                .content(content == null ? "" : content)
                 .userId(userId)
                 .build();
         return this.save(version);

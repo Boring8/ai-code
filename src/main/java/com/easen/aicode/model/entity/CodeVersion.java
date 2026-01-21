@@ -43,11 +43,6 @@ public class CodeVersion implements Serializable {
     private String codeGenType;
 
     /**
-     * 代码面板文本全量
-     */
-    private String content;
-
-    /**
      * 创建用户 id
      */
     @Column("userId")
