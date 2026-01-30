@@ -62,7 +62,8 @@ public class GlobalExceptionHandler {
         String accept = request.getHeader("Accept");
         String uri = request.getRequestURI();
         if ((accept != null && accept.contains("text/event-stream")) ||
-                uri.contains("/chat/gen/code")) {
+                // 兼容旧路径与当前路径
+                uri.contains("/app/chat/code")) {
             try {
                 // 设置SSE响应头
                 response.setContentType("text/event-stream");

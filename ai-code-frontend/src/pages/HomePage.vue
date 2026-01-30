@@ -217,6 +217,7 @@ onMounted(() => {
             :rows="3"
             :maxlength="1000"
             class="prompt-input"
+            @keydown.enter.exact.prevent="createApp"
           />
           <div class="input-actions">
             <div class="left-actions">
